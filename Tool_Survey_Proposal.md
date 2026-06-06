@@ -5,11 +5,11 @@
 
 | Thông tin | Chi tiết |
 |---|---|
-| **Tên nhóm** | [Tên nhóm] |
-| **Thành viên** | [Họ tên 1] · [Họ tên 2] · [Họ tên 3] · [Họ tên 4] |
-| **MSSV** | [MSSV 1] · [MSSV 2] · [MSSV 3] · [MSSV 4] |
+| **Tên nhóm** | Nhóm 8 |
+| **Thành viên** | Trần Mạnh Hùng · Ninh Văn Khải · Nguyễn Tấn Thắng |
+| **MSSV** | 23127195 · [MSSV 2] · [MSSV 3] |
 | **Chủ đề** | **T10 — Mutation Testing & Test Effectiveness** |
-| **Ngày nộp** | [Ngày/Tháng/Năm] |
+| **Ngày nộp** | 06/06/2026 |
 | **Giảng viên** | ThS. Lâm Quang Vũ |
 
 ---
