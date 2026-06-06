@@ -56,7 +56,7 @@ Code coverage cao (80–100%) không đảm bảo bộ test thực sự chất l
 
 | Thuộc tính | Chi tiết |
 |---|---|
-| **Công cụ** | ChatGPT-4o (OpenAI) và/hoặc Claude 3.5 Sonnet (Anthropic) |
+| **Công cụ** | ChatGPT-5.5 (OpenAI) và/hoặc Claude 4.6 Sonnet (Anthropic) |
 | **Mô hình tích hợp** | Prompt-based — không cần cài đặt plugin |
 | **Chi phí** | Free tier / $20/tháng (subscription) |
 | **Cách dùng** | Phân tích surviving mutants, gợi ý assertion, phát hiện equivalent mutants |
