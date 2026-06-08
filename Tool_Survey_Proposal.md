@@ -10,7 +10,7 @@
 | **MSSV** | 23127195 · [MSSV 2] · [MSSV 3] |
 | **Chủ đề** | **T10 — Mutation Testing & Test Effectiveness** |
 | **Ngày nộp** | 06/06/2026 |
-| **Giảng viên** | ThS. Lâm Quang Vũ |
+| **Giảng viên** | ThS. Hồ Tuấn Thanh |
 
 ---
 
