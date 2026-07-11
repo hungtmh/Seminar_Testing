@@ -261,6 +261,60 @@ npx stryker run --dryRun
 # Output mẫu: "Found 156 mutants to test across 12 files"
 ```
 
+### 3.6 Cài đặt thực tế tuần 7 trên EShop backend
+
+Nhóm đã chạy baseline trên thư mục `eshop-sut/backend` của repository nộp bài. Backend ban đầu chưa có test runner thật, vì script `npm test` chỉ in `Error: no test specified`. Do đó tuần 7 bổ sung Jest, Stryker và một module business logic nhỏ cho checkout/order để có dữ liệu mutation thật.
+
+Các lệnh đã chạy:
+
+```bash
+cd eshop-sut/backend
+npm install --save-dev jest @stryker-mutator/core @stryker-mutator/jest-runner
+node -v
+npm -v
+npm test
+npm run mutation
+```
+
+Phiên bản môi trường ghi nhận:
+
+```text
+Node.js v22.20.0
+npm 10.9.3
+jest 30.4.2
+@stryker-mutator/core 9.6.1
+@stryker-mutator/jest-runner 9.6.1
+```
+
+Các file được thêm/cập nhật:
+
+```text
+eshop-sut/backend/package.json
+eshop-sut/backend/package-lock.json
+eshop-sut/backend/.gitignore
+eshop-sut/backend/business/orderLogic.js
+eshop-sut/backend/__tests__/orderLogic.test.js
+eshop-sut/backend/stryker.config.mjs
+```
+
+Config baseline dùng scope nhỏ:
+
+```javascript
+export default {
+  packageManager: "npm",
+  testRunner: "jest",
+  reporters: ["html", "clear-text", "progress"],
+  mutate: ["business/orderLogic.js"],
+  coverageAnalysis: "perTest",
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 0,
+  },
+  timeoutMS: 10000,
+};
+```
+
 ---
 
 ## 4. Chạy Mutation Test & Đọc báo cáo
@@ -337,6 +391,48 @@ Mở bằng browser và bạn sẽ thấy:
 | **NoCoverage count cao** | Code không được test bởi bất kỳ test nào | Thêm test cho các path chưa được cover |
 | **Một file có score thấp** | Module đó cần được ưu tiên cải thiện | Tập trung vào file đó trước |
 | **Timeout count cao** | Có thể có vòng lặp không kết thúc | Kiểm tra logic vòng lặp |
+
+### 4.4 Kết quả baseline tuần 7
+
+Jest test runner chạy thành công:
+
+```text
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        1.567 s
+```
+
+Stryker mutation baseline chạy thành công:
+
+```text
+Found 1 of 9 file(s) to be mutated.
+Instrumented 1 source file(s) with 62 mutant(s)
+Initial test run succeeded. Ran 6 tests in 1 second.
+
+All files / orderLogic.js:
+Mutation score total:   74.19%
+Mutation score covered: 77.97%
+Killed:                 46
+Timeout:                0
+Survived:               13
+NoCoverage:             3
+Errors:                 0
+```
+
+HTML report được sinh tại:
+
+```text
+eshop-sut/backend/reports/mutation/mutation.html
+```
+
+Ghi chú lỗi/cảnh báo khi cài đặt:
+
+```text
+npm install có cảnh báo deprecated package từ dependency tree.
+npm audit ghi nhận vulnerability trong dependency tree hiện tại.
+Nhóm chưa chạy npm audit fix ở tuần 7 để tránh thay đổi version ngoài phạm vi baseline.
+```
 
 ---
 
