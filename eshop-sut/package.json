@@ -1,0 +1,16 @@
+{
+  "name": "eshop-sut",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend-web && npm install && cd ../frontend-admin && npm install && cd ../frontend-mobile && npm install",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:web": "npm run dev --prefix frontend-web -- --host 0.0.0.0",
+    "dev:admin": "npm run dev --prefix frontend-admin -- --host 0.0.0.0",
+    "dev:mobile": "npm run web --prefix frontend-mobile",
+    "dev": "concurrently -n backend,web,admin,mobile -c green,cyan,magenta,yellow \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:admin\" \"npm run dev:mobile\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
