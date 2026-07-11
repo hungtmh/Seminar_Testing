@@ -263,20 +263,18 @@ npx stryker run --dryRun
 
 ### 3.6 Cài đặt thực tế tuần 7 trên EShop backend
 
-Nhóm đã chạy baseline trên thư mục `eshop-sut/backend` của repository nộp bài. Backend ban đầu chưa có test runner thật, vì script `npm test` chỉ in `Error: no test specified`. Do đó tuần 7 bổ sung Jest, Stryker và một module business logic nhỏ cho checkout/order để có dữ liệu mutation thật.
+Nhóm chạy baseline trên thư mục `eshop-sut/backend` của repository nộp bài. Backend ban đầu chưa có test runner thật, vì script `npm test` chỉ in `Error: no test specified`. Vì vậy tuần 7 bổ sung Jest, Stryker và một module business logic nhỏ cho checkout/order để có dữ liệu mutation thật, thay vì chỉ mô phỏng bằng ví dụ.
 
-Các lệnh đã chạy:
+Các bước cài đặt có thể chạy lại từ repository root:
 
 ```bash
 cd eshop-sut/backend
 npm install --save-dev jest @stryker-mutator/core @stryker-mutator/jest-runner
-node -v
-npm -v
 npm test
 npm run mutation
 ```
 
-Phiên bản môi trường ghi nhận:
+Phiên bản môi trường đã ghi nhận khi lập baseline:
 
 ```text
 Node.js v22.20.0
@@ -297,7 +295,7 @@ eshop-sut/backend/__tests__/orderLogic.test.js
 eshop-sut/backend/stryker.config.mjs
 ```
 
-Config baseline dùng scope nhỏ:
+Config baseline dùng scope nhỏ để thời gian chạy phù hợp cho seminar:
 
 ```javascript
 export default {
@@ -315,82 +313,83 @@ export default {
 };
 ```
 
+Lỗi/cảnh báo gặp phải và cách xử lý:
+
+| Vấn đề | Dấu hiệu | Cách xử lý tuần 7 |
+|---|---|---|
+| Backend chưa có test runner thật | `npm test` ban đầu không chạy test nghiệp vụ | Thêm Jest, script `test` và file `__tests__/orderLogic.test.js` |
+| Scope mutate toàn backend quá rộng | Stryker có thể chạy lâu, khó demo | Giới hạn `mutate` vào `business/orderLogic.js` |
+| Warning dependency khi `npm install` | npm in cảnh báo từ dependency tree | Ghi nhận trong report, chưa đổi version ngoài phạm vi baseline |
+| `npm audit` có cảnh báo bảo mật | Dependency tree hiện tại có vulnerability | Không chạy `npm audit fix` trong tuần 7 để tránh thay đổi baseline ngoài ý muốn |
+
 ---
 
 ## 4. Chạy Mutation Test & Đọc báo cáo
 
 ### 4.1 Chạy Mutation Test
 
+Chạy từ thư mục backend:
+
 ```bash
-# Chạy đầy đủ
-npx stryker run
+# Từ repository root
+cd eshop-sut/backend
 
-# Chạy với verbose logging (debug)
-npx stryker run --logLevel debug
+# Kiểm tra test gốc trước khi mutation testing
+npm test
 
-# Chạy và mở báo cáo HTML ngay sau khi xong
-npx stryker run && open reports/mutation/mutation.html
+# Chạy Stryker theo script đã cấu hình
+npm run mutation
 ```
 
-**Ví dụ output trên console:**
-```
-✔ Stryker v8.x running, this could take a few minutes...
-  Killed  :  89
-  Survived:  23
-  Timeout :   4
-  NoCoverage: 12
-  Error   :   2
-Mutation score: 79.46% (89/112)
-```
+Nếu cần debug, dùng `npx stryker run --logLevel debug`. Nếu chỉ cần nộp bằng chứng tuần 7, dùng `npm run mutation` để sinh lại HTML report.
 
 ### 4.2 Đọc báo cáo HTML
 
-Báo cáo HTML nằm tại: `reports/mutation/mutation.html`
+Báo cáo HTML của baseline tuần 7 nằm tại:
 
-Mở bằng browser và bạn sẽ thấy:
-
-```
-📊 Dashboard
-┌────────────────────────────────────────────────────┐
-│  Mutation Score: 79%   [==========>    ]           │
-│  ✅ Killed: 89    ❌ Survived: 23    ⏱️ Timeout: 4 │
-└────────────────────────────────────────────────────┘
-
-📂 File Explorer (click từng file để xem chi tiết)
-├── src/checkout/checkout.service.ts    [Score: 72%] ⚠️
-├── src/orders/order.service.ts         [Score: 88%] ✅
-├── src/products/product.service.ts     [Score: 91%] ✅
-└── src/users/user.service.ts           [Score: 65%] 🔴
+```text
+eshop-sut/backend/reports/mutation/mutation.html
 ```
 
-**Khi click vào một file, mỗi dòng code sẽ được highlight:**
+Mở report bằng browser:
 
-```
-🟢 Dòng bị highlighted xanh = Mutant đã bị Kill (test tốt)
-🔴 Dòng bị highlighted đỏ  = Mutant đang Survived (cần thêm test!)
-⚪ Dòng không highlight      = Không có mutant nào được tạo ra
+```bash
+# macOS/Linux
+open reports/mutation/mutation.html
+
+# Windows PowerShell
+Start-Process .\reports\mutation\mutation.html
 ```
 
-**Ví dụ chi tiết một Survived Mutant:**
+Trong report, mở file `business/orderLogic.js` để xem từng mutant:
+
+```text
+Killed     = test phát hiện thay đổi sai và fail đúng lúc
+Survived   = tất cả test vẫn pass, cần thêm test hoặc kiểm tra equivalent mutant
+NoCoverage = không có test nào đi qua vùng code đó
+Timeout    = mutant làm test treo hoặc chạy quá thời gian
+```
+
+Ví dụ surviving mutant thực tế trong baseline:
+
 ```diff
-// File: src/checkout/checkout.service.ts, Line 47
+// File: business/orderLogic.js, calculateShippingFee
 
-// ❌ SURVIVED — Mutant #34 (ROR - Relational Operator)
-- if (cartTotal >= minimumOrderAmount) {
-+ if (cartTotal > minimumOrderAmount) {     ← Mutant này đang sống!
-  
-// Nghĩa là: Test suite của bạn KHÔNG có test kiểm tra
-// trường hợp cartTotal === minimumOrderAmount (boundary case)
+- if (shippingMethod === "express") {
++ if (false) {
 ```
+
+Mutant này sống vì test tuần 7 chưa kiểm tra trường hợp giao hàng express. Test cần bổ sung ở tuần sau có thể assert `calculateShippingFee(100000, "express") === 45000`.
 
 ### 4.3 Các chỉ số cần theo dõi trong báo cáo
 
 | Chỉ số | Ý nghĩa | Hành động cần làm |
 |---|---|---|
-| **Survived count cao** | Test suite yếu, nhiều lỗ hổng logic | Viết thêm test có assertion cụ thể |
-| **NoCoverage count cao** | Code không được test bởi bất kỳ test nào | Thêm test cho các path chưa được cover |
-| **Một file có score thấp** | Module đó cần được ưu tiên cải thiện | Tập trung vào file đó trước |
-| **Timeout count cao** | Có thể có vòng lặp không kết thúc | Kiểm tra logic vòng lặp |
+| Mutation score total | Tỉ lệ mutant bị phát hiện trên toàn bộ mutant hợp lệ | Dùng làm baseline so sánh sau khi thêm test |
+| Killed | Mutant làm test fail | Giữ test hiện có vì test đang bắt lỗi tốt |
+| Survived | Mutant vẫn pass toàn bộ test | Thêm assertion hoặc test case mới |
+| NoCoverage | Code chứa mutant chưa được test chạy qua | Thêm test cho nhánh chưa được cover |
+| Timeout | Mutant làm test treo hoặc quá thời gian | Kiểm tra vòng lặp, async, hoặc timeout config |
 
 ### 4.4 Kết quả baseline tuần 7
 
@@ -400,15 +399,15 @@ Jest test runner chạy thành công:
 Test Suites: 1 passed, 1 total
 Tests:       6 passed, 6 total
 Snapshots:   0 total
-Time:        1.567 s
+Time:        0.191 s
 ```
 
 Stryker mutation baseline chạy thành công:
 
 ```text
-Found 1 of 9 file(s) to be mutated.
+Found 1 of 10 file(s) to be mutated.
 Instrumented 1 source file(s) with 62 mutant(s)
-Initial test run succeeded. Ran 6 tests in 1 second.
+Initial test run succeeded. Ran 6 tests in 0 seconds.
 
 All files / orderLogic.js:
 Mutation score total:   74.19%
@@ -426,12 +425,17 @@ HTML report được sinh tại:
 eshop-sut/backend/reports/mutation/mutation.html
 ```
 
-Ghi chú lỗi/cảnh báo khi cài đặt:
+Checklist bằng chứng để đóng gói tuần 7:
 
 ```text
-npm install có cảnh báo deprecated package từ dependency tree.
-npm audit ghi nhận vulnerability trong dependency tree hiện tại.
-Nhóm chưa chạy npm audit fix ở tuần 7 để tránh thay đổi version ngoài phạm vi baseline.
+Group08_07.md
+User_Guide.md
+eshop-sut/backend/package.json
+eshop-sut/backend/package-lock.json
+eshop-sut/backend/stryker.config.mjs
+eshop-sut/backend/business/orderLogic.js
+eshop-sut/backend/__tests__/orderLogic.test.js
+eshop-sut/backend/reports/mutation/mutation.html
 ```
 
 ---

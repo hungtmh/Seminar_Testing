@@ -47,6 +47,8 @@ Group08_07.md
 
 ## 5. Lệnh đã chạy
 
+Ví dụ dưới đây dùng PowerShell theo máy nộp bài. Nếu dùng macOS/Linux, thay `\` bằng `/` và chạy cùng thứ tự lệnh.
+
 Chạy tại repository root:
 
 ```powershell
@@ -85,6 +87,17 @@ Kiểm tra report và trạng thái Git:
 
 ```powershell
 Get-ChildItem -Recurse reports\mutation
+git status --short
+```
+
+Lệnh tương đương trên macOS/Linux:
+
+```bash
+cd eshop-sut/backend
+npm install
+npm test
+npm run mutation
+ls -R reports/mutation
 git status --short
 ```
 
@@ -129,7 +142,7 @@ Kết quả `npm test`:
 Test Suites: 1 passed, 1 total
 Tests:       6 passed, 6 total
 Snapshots:   0 total
-Time:        1.567 s
+Time:        0.191 s
 Ran all test suites.
 ```
 
@@ -138,9 +151,9 @@ Ran all test suites.
 Kết quả `npm run mutation`:
 
 ```text
-Found 1 of 9 file(s) to be mutated.
+Found 1 of 10 file(s) to be mutated.
 Instrumented 1 source file(s) with 62 mutant(s)
-Initial test run succeeded. Ran 6 tests in 1 second.
+Initial test run succeeded. Ran 6 tests in 0 seconds.
 Ran 2.42 tests per mutant on average.
 ```
 
@@ -198,6 +211,13 @@ Stryker ghi nhận 3 noCoverage mutants:
 | `npm audit` báo vulnerability trong dependency tree | Trung bình/cao | Ghi nhận để xử lý riêng sau baseline, chưa chạy `npm audit fix` |
 | Stryker scope toàn backend có thể chạy lâu | Quan trọng | Giới hạn `mutate` vào `business/orderLogic.js` |
 
+Ghi chú của Nguyễn Tấn Thắng:
+
+- Đã cập nhật `User_Guide.md` mục 3 với các bước cài đặt thực tế trên `eshop-sut/backend`.
+- Đã cập nhật `User_Guide.md` mục 4 với cách chạy `npm test`, `npm run mutation` và cách đọc HTML report.
+- Đã ghi nhận các lỗi/cảnh báo không xử lý ngay trong tuần 7 để tránh làm lệch baseline.
+- Đã chuẩn bị checklist file cần có trong `Group08_07.zip`.
+
 ## 12. Hướng dẫn chạy lại cho thành viên khác
 
 Từ repository root:
@@ -219,6 +239,20 @@ Nếu dùng PowerShell:
 
 ```powershell
 Start-Process .\reports\mutation\mutation.html
+```
+
+Checklist đóng gói tuần 7:
+
+```text
+Group08_07.md
+User_Guide.md
+eshop-sut/backend/package.json
+eshop-sut/backend/package-lock.json
+eshop-sut/backend/.gitignore
+eshop-sut/backend/stryker.config.mjs
+eshop-sut/backend/business/orderLogic.js
+eshop-sut/backend/__tests__/orderLogic.test.js
+eshop-sut/backend/reports/mutation/mutation.html
 ```
 
 ## 13. Phân công và bằng chứng
