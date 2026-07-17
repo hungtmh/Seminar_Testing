@@ -50,7 +50,7 @@ function initDatabase() {
         db.run(`CREATE TABLE users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
-            email TEXT,
+            email TEXT UNIQUE,
             password TEXT,
             role TEXT DEFAULT 'user',
             login_attempts INTEGER DEFAULT 0,

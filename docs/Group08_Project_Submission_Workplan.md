@@ -9,7 +9,7 @@ Do lịch nộp project được đẩy sớm, nhóm cần chuyển từ baselin
 - Stryker phải tạo mutant thật từ code EShop.
 - Phải có mutation report trước và sau khi cải thiện test.
 - Không trình bày một đoạn code giả hoàn toàn bên ngoài EShop như kết quả chính.
-- Module `business/orderLogic.js` tuần 7 chỉ được xem là baseline học công cụ, không dùng làm kết quả chính cuối cùng nếu chưa gắn lại với logic EShop thật.
+- Module demo `business/orderLogic.js` của tuần 7 đã được xóa khỏi backend để tránh lẫn với kết quả project chính.
 
 ## 2. Yêu cầu nộp cuối
 
@@ -43,10 +43,11 @@ eshop-sut/backend/server.js
 | File/thư mục | Mục đích |
 |---|---|
 | `eshop-sut/backend/server.js` | Giữ Express routes thật, export `app` để test API |
+| `eshop-sut/backend/services/authService.js` | Logic thật cho Auth/User, được route trong `server.js` sử dụng |
 | `eshop-sut/backend/__tests__/auth.api.test.js` | Test API đăng ký, đăng nhập, khóa tài khoản, reset password |
 | `eshop-sut/backend/__tests__/order.api.test.js` | Test cart, coupon, checkout/order |
 | `eshop-sut/backend/__tests__/admin-products.api.test.js` | Test product/admin/import/status |
-| `eshop-sut/backend/stryker.config.mjs` | Config mutate code EShop thật |
+| `eshop-sut/backend/stryker.auth.config.mjs` | Config mutate code EShop thật cho Auth/User |
 | `eshop-sut/backend/reports/mutation-baseline/` | Report trước khi cải thiện test |
 | `eshop-sut/backend/reports/mutation-improved/` | Report sau khi cải thiện test |
 
@@ -59,6 +60,13 @@ eshop-sut/backend/services/productService.js
 ```
 
 Không tạo logic giả tách rời EShop để thay thế kết quả chính.
+
+Ghi chú quan trọng cho cả nhóm:
+
+- `__tests__/orderLogic.test.js` và `business/orderLogic.js` đã được xóa để `npm test` không còn tính test demo vào kết quả chính.
+- Kết quả project chính chỉ dựa vào test API/service thật của EShop, ví dụ `auth.api.test.js` gọi route thật qua Supertest.
+- Khi làm phần của mình, mỗi thành viên cần tạo test API/service thật tương ứng, ví dụ `auth.api.test.js`, `order.api.test.js`, `admin-products.api.test.js`.
+- Nếu cần nhắc lại tuần 7 trong final report, chỉ ghi là phần học công cụ ban đầu; không đưa vào số liệu test/mutation chính.
 
 ## 4. Phân công công bằng theo luồng EShop
 
@@ -271,9 +279,44 @@ Báo cáo phải có bảng so sánh:
 
 ## 6. Điều chỉnh Stryker config
 
-Không để config cuối chỉ mutate module demo `business/orderLogic.js`.
+Không dùng lại config cũ chỉ mutate module demo `business/orderLogic.js`.
 
-Config cuối nên mutate code EShop thật. Ví dụ:
+Config cuối nên mutate code EShop thật. Với phần Auth/User, Hùng đã tách logic thật từ `server.js` sang:
+
+```text
+eshop-sut/backend/services/authService.js
+```
+
+Route trong `server.js` vẫn gọi service này:
+
+```javascript
+app.post("/api/register", registerUser(db));
+app.post("/api/login", loginUser(db));
+app.post("/api/forgot-password", forgotPassword(db));
+app.post("/api/reset-password", resetPassword(db));
+app.get("/api/users/me", authenticateToken, getCurrentUser(db));
+app.put("/api/users/me", authenticateToken, updateCurrentUser(db));
+```
+
+Stryker Auth config nên mutate service thật này:
+
+```javascript
+export default {
+  packageManager: "npm",
+  testRunner: "jest",
+  reporters: ["html", "clear-text", "progress"],
+  mutate: ["services/authService.js"],
+  coverageAnalysis: "perTest",
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 0
+  },
+  timeoutMS: 10000
+};
+```
+
+Config tổng cho project có thể mutate các service thật. Ví dụ:
 
 ```javascript
 export default {
@@ -281,7 +324,6 @@ export default {
   testRunner: "jest",
   reporters: ["html", "clear-text", "progress"],
   mutate: [
-    "server.js",
     "services/**/*.js",
     "!__tests__/**/*.js",
     "!database.js"
