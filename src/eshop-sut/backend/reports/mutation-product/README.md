@@ -46,8 +46,8 @@ Kết quả kiểm tra lại toàn bộ backend:
 
 | Metric | Kết quả |
 |---|---:|
-| Test suites | 4 passed / 4 total |
-| Tests | 52 passed / 52 total |
+| Test suites | 5 passed / 5 total |
+| Tests | 73 passed / 73 total |
 | Product/Admin tests dùng cho Stryker | 18 passed |
 | Snapshots | 0 |
 
