@@ -1,5 +1,5 @@
 /**
- * Mutation configuration for Cart + Coupon + Checkout/Order APIs.
+ * Baseline mutation configuration for Cart + Coupon + Checkout/Order APIs.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
  */
@@ -8,12 +8,12 @@ export default {
   testRunner: "jest",
   reporters: ["html", "clear-text", "progress"],
   htmlReporter: {
-    fileName: "reports/mutation-order/mutation.html",
+    fileName: "reports/mutation-order-baseline/mutation.html",
   },
   mutate: ["services/orderService.js"],
-  testFiles: ["tests/orders.api.test.js"],
+  testFiles: ["tests/orders.api.baseline.test.js"],
   jest: {
-    configFile: "jest.order.config.cjs",
+    configFile: "jest.order.baseline.config.cjs",
   },
   coverageAnalysis: "perTest",
   thresholds: {
