@@ -8,7 +8,9 @@
     "dev": "node server.js",
     "test": "jest --runInBand",
     "mutation:auth": "stryker run stryker.auth.config.mjs",
-    "mutation:order": "stryker run stryker.order.config.mjs"
+    "mutation:order": "stryker run stryker.order.config.mjs",
+    "mutation:order:baseline": "stryker run stryker.order.baseline.config.mjs",
+    "mutation:product": "stryker run stryker.product.config.mjs"
   },
   "keywords": [],
   "author": "",
