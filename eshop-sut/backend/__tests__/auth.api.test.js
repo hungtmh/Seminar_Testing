@@ -1,3 +1,4 @@
+const jwt = require("jsonwebtoken");
 const request = require("supertest");
 const app = require("../server");
 const { loginUser } = require("../services/authService");
@@ -7,21 +8,21 @@ const uniqueEmail = (label) =>
 
 async function registerUser(overrides = {}) {
   const payload = {
-    name: "Baseline Auth User",
-    email: uniqueEmail("baseline"),
+    name: "Improved Auth User",
+    email: uniqueEmail("improved"),
     password: "Password123!",
     ...overrides,
   };
 
   const response = await request(app).post("/api/register").send(payload);
   expect(response.status).toBe(200);
-  return payload;
+  return { ...payload, id: response.body.id };
 }
 
-describe("authentication API baseline tests", () => {
-  test("registers a user", async () => {
+describe("authentication API improved tests", () => {
+  test("registers a user and returns a useful response body", async () => {
     const response = await request(app).post("/api/register").send({
-      name: "Baseline Register",
+      name: "Improved Register",
       email: uniqueEmail("register"),
       password: "Password123!",
     });
@@ -48,7 +49,7 @@ describe("authentication API baseline tests", () => {
     expect(response.body.error).toMatch(/UNIQUE constraint failed/i);
   });
 
-  test("logs in with a registered user", async () => {
+  test("logs in with a registered user and returns a JWT containing user data", async () => {
     const user = await registerUser();
 
     const response = await request(app).post("/api/login").send({
@@ -56,9 +57,22 @@ describe("authentication API baseline tests", () => {
       password: user.password,
     });
 
+    const decoded = jwt.decode(response.body.token);
+
     expect(response.status).toBe(200);
     expect(response.body.message).toBe("Login successful");
-    expect(response.body.token).toBeDefined();
+    expect(response.body.user).toEqual(
+      expect.objectContaining({
+        email: user.email,
+        name: user.name,
+      }),
+    );
+    expect(decoded).toEqual(
+      expect.objectContaining({
+        id: expect.any(Number),
+        role: "user",
+      }),
+    );
   });
 
   test("rejects login with a wrong password", async () => {

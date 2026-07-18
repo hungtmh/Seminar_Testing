@@ -11,7 +11,6 @@ export default {
   reporters: ["html", "clear-text", "progress"],
   mutate: ["services/authService.js"],
   coverageAnalysis: "perTest",
-  maxConcurrentTestRunners: 1,
   thresholds: {
     high: 80,
     low: 60,

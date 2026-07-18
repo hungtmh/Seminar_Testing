@@ -53,16 +53,57 @@ auth.api.test.js -> server.js route -> authService.js -> database.sqlite
 
 Vì vậy đây vẫn là API test thật của EShop, không phải test một module giả.
 
-## 3. Lệnh đã chạy
+## 3. Full flow đã thực hiện
 
-Chạy Jest:
+Quy trình làm lại từ đầu:
+
+```text
+Đọc code EShop -> Viết auth.api.test.js bản baseline yếu
+-> Chạy Jest baseline -> Chạy Stryker baseline
+-> Lưu reports/mutation/mutation.html vào mutation-auth-baseline
+-> Đọc surviving mutants -> Cải thiện auth.api.test.js
+-> Chạy Jest improved -> Chạy Stryker improved
+-> Lưu reports/mutation/mutation.html vào mutation-auth-improved
+-> Cập nhật báo cáo và PDF
+```
+
+## 4. Lệnh đã chạy
+
+Chạy Jest baseline:
 
 ```powershell
 cd eshop-sut\backend
 npm test
 ```
 
-Kết quả improved mới nhất:
+Kết quả baseline:
+
+```text
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+```
+
+Chạy Stryker baseline:
+
+```powershell
+npm run mutation:auth
+```
+
+Sau khi chạy xong, lưu report baseline:
+
+```powershell
+mkdir reports\mutation-auth-baseline
+copy reports\mutation\mutation.html reports\mutation-auth-baseline\mutation.html
+```
+
+Chạy Jest improved:
+
+```powershell
+npm test
+```
+
+Kết quả improved:
 
 ```text
 Test Suites: 1 passed, 1 total
@@ -70,62 +111,87 @@ Tests:       9 passed, 9 total
 Snapshots:   0 total
 ```
 
-Chạy Stryker cho Auth/User:
+Chạy Stryker improved:
 
 ```powershell
-cd eshop-sut\backend
 npm run mutation:auth
 ```
 
-Stryker config mutate logic thật:
+Sau khi chạy xong, lưu report improved:
+
+```powershell
+mkdir reports\mutation-auth-improved
+copy reports\mutation\mutation.html reports\mutation-auth-improved\mutation.html
+```
+
+## 5. Cấu hình Stryker
+
+File:
+
+```text
+eshop-sut/backend/stryker.auth.config.mjs
+```
+
+Nội dung chính:
 
 ```javascript
-mutate: ["services/authService.js"]
+export default {
+  packageManager: "npm",
+  testRunner: "jest",
+  reporters: ["html", "clear-text", "progress"],
+  mutate: ["services/authService.js"],
+  coverageAnalysis: "perTest",
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 0,
+  },
+  timeoutMS: 10000,
+};
 ```
 
-Report mặc định sau mỗi lần chạy:
+Ý nghĩa:
 
 ```text
-eshop-sut/backend/reports/mutation/mutation.html
+Stryker chỉ tạo mutant trong services/authService.js.
+Sau mỗi mutant, Stryker chạy lại Jest/Supertest.
+Report mặc định được sinh tại reports/mutation/mutation.html.
 ```
 
-Report đã lưu riêng:
-
-```text
-eshop-sut/backend/reports/mutation-auth-baseline/mutation.html
-eshop-sut/backend/reports/mutation-auth-improved/mutation.html
-```
-
-## 4. So sánh Baseline và Improved
+## 6. So sánh Baseline và Improved
 
 Baseline là bản test yếu ban đầu, chỉ có các case cơ bản: đăng ký user, đăng nhập đúng, đăng nhập sai mật khẩu, profile không có token.
 
-Improved là bản đã thêm assertion/test để kill surviving mutants: đăng ký trùng email, email không tồn tại, khóa tài khoản, lỗi database khi login, kiểm tra response body, profile với token hợp lệ.
+Improved là bản đã thêm assertion/test để kill surviving mutants: đăng ký trùng email, email không tồn tại, khóa tài khoản, lỗi database khi login, kiểm tra response body, kiểm tra JWT payload, profile với token hợp lệ.
 
 | Lần chạy | Số test Jest | Mutation score | Killed | Timeout | Survived | NoCoverage | Errors | Report |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| Baseline | 4 | 38.14% | 28 | 17 | 5 | 68 | 7 | `reports/mutation-auth-baseline/mutation.html` |
-| Improved | 9 | 59.83% | 48 | 22 | 0 | 47 | 8 | `reports/mutation-auth-improved/mutation.html` |
+| Baseline | 4 | 31.30% | 32 | 4 | 11 | 68 | 10 | `reports/mutation-auth-baseline/mutation.html` |
+| Improved | 9 | 59.83% | 47 | 23 | 0 | 47 | 8 | `reports/mutation-auth-improved/mutation.html` |
 
 Kết quả quan trọng:
 
 ```text
-Survived mutants giảm từ 5 xuống 0.
-Mutation score tăng từ 38.14% lên 59.83%.
+Survived mutants giảm từ 11 xuống 0.
+Mutation score tăng từ 31.30% lên 59.83%.
 NoCoverage giảm từ 68 xuống 47.
 ```
 
-## 5. Survived mutants baseline và cách cải thiện
+## 7. Survived mutants baseline và cách cải thiện
 
 | Baseline mutant | Vì sao survived | Test/assertion đã thêm |
 |---|---|---|
-| Register response body bị đổi thành `{}` hoặc message rỗng | Test baseline chỉ check status `200`, chưa check response body | Assert `message: "User registered successfully"` và `id: expect.any(Number)` |
-| Header `authorization` bị đổi thành chuỗi rỗng | Test baseline chỉ gọi profile không token, chưa có case token hợp lệ | Thêm test login lấy token và `GET /api/users/me` phải trả `200` |
-| Unauthorized body bị đổi thành `{}` hoặc error rỗng | Test baseline chỉ check status `401` | Assert body bằng `{ error: "Unauthorized" }` |
-| `if (token == null)` bị đổi thành `if (true)` | Chưa test trường hợp token hợp lệ đi qua middleware | Thêm test profile với `Authorization: Bearer <token>` |
-| Login attempts update bị đổi nhưng test vẫn pass | Test baseline chỉ check một lần sai password | Thêm test sai password nhiều lần và account bị khóa |
+| `if (!user)` trong login bị đổi thành `if (false)` | Baseline chưa test email không tồn tại | Thêm test `rejects login for an unknown email` |
+| Query reset `login_attempts` khi login thành công bị đổi params thành `[]` | Baseline chỉ check login trả `200`, chưa quan sát dữ liệu liên quan | Thêm kiểm tra JWT/user data và các flow login sau đó |
+| `newAttempts = user.login_attempts + 2` bị đổi thành `- 2` | Baseline chỉ test một lần sai password | Thêm test sai password nhiều lần và account bị khóa |
+| JWT payload bị đổi thành `{}` | Baseline chỉ check token tồn tại | Decode JWT và assert có `id`, `role` |
+| Điều kiện lock `newAttempts >= 3` bị đổi thành `> 3` hoặc `< 3` | Baseline chưa test ngưỡng khóa tài khoản | Thêm test lock account sau nhiều lần sai password |
+| Body lỗi login sai bị đổi thành `{}` | Baseline chỉ check status `401` | Assert body bằng `{ error: "Invalid email or password" }` |
+| Header `authorization` bị đổi thành chuỗi rỗng | Baseline chỉ test không có token | Thêm test token hợp lệ gọi `GET /api/users/me` phải trả `200` |
+| Body lỗi Unauthorized bị đổi thành `{}` hoặc error rỗng | Baseline chỉ check status `401` | Assert body bằng `{ error: "Unauthorized" }` |
+| `if (token == null)` bị đổi thành `if (true)` | Baseline chưa có case token hợp lệ đi qua middleware | Thêm test profile với `Authorization: Bearer <token>` |
 
-## 6. Test cases improved hiện tại
+## 8. Test cases improved hiện tại
 
 File:
 
@@ -135,9 +201,9 @@ eshop-sut/backend/__tests__/auth.api.test.js
 
 | # | Test case | Mục đích |
 |---:|---|---|
-| 1 | registers a user | Kiểm tra status và response body khi register thành công |
+| 1 | registers a user and returns a useful response body | Kiểm tra status và response body khi register thành công |
 | 2 | rejects duplicate registration with the same email | Cover nhánh database error của register |
-| 3 | logs in with a registered user | Kiểm tra login thành công, message và token |
+| 3 | logs in with a registered user and returns a JWT containing user data | Kiểm tra login thành công, message, user data và JWT payload |
 | 4 | rejects login with a wrong password | Kiểm tra login sai password trả đúng error |
 | 5 | rejects login for an unknown email | Cover nhánh `!user` trong login |
 | 6 | locks a user after repeated wrong passwords | Bảo vệ logic `login_attempts` và `locked_until` |
@@ -145,29 +211,22 @@ eshop-sut/backend/__tests__/auth.api.test.js
 | 8 | requires a token for current user profile | Kiểm tra middleware khi thiếu token |
 | 9 | reads current user profile with a valid token | Kiểm tra middleware token hợp lệ và API profile |
 
-## 7. Ghi chú về SQLite khi chạy Stryker
+## 9. Ghi chú về SQLite khi chạy Stryker
 
-Stryker có thể tạo nhiều sandbox/test runner và SQLite là file database, nên có thể gặp warning:
+Khi chạy mặc định, Stryker tạo nhiều test runner để chạy nhanh hơn. Vì SQLite là file database, console có thể xuất hiện warning:
 
 ```text
 SQLITE_BUSY: database is locked
 ChildProcessCrashedError
 ```
 
-Report vẫn dùng được nếu Stryker kết thúc và sinh HTML report. Để giảm lỗi lock, config đã thêm:
-
-```javascript
-maxConcurrentTestRunners: 1
-```
-
-## 8. Kết luận
-
-Phần Auth/User đã đi đúng full flow:
+Report vẫn dùng được nếu Stryker kết thúc và sinh HTML report. Trong lần chạy này Stryker đã hoàn thành và tạo đủ:
 
 ```text
-Đọc code EShop -> Viết Jest baseline -> Chạy Jest -> Chạy Stryker baseline
--> Đọc surviving mutants -> Thêm assertion/test -> Chạy Jest
--> Chạy Stryker improved -> Lưu baseline/improved report
+reports/mutation-auth-baseline/mutation.html
+reports/mutation-auth-improved/mutation.html
 ```
 
-Kết quả improved không còn surviving mutant trong phạm vi Auth/User đã cover.
+## 10. Kết luận
+
+Phần Auth/User đã được làm lại đúng full flow từ đầu. Baseline cố ý còn yếu để Stryker sinh surviving mutants thật. Sau khi đọc mutant và thêm assertion/test, improved report không còn surviving mutant trong phạm vi Auth/User đã cover.
