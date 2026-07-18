@@ -1,10 +1,10 @@
 /**
- * Cart + Coupon + Checkout/Order API handlers.
+ * Service logic for Cart + Coupon + Checkout/Order.
  *
  * Owner: 23127060 - Ninh Van Khai
  */
 
-function getCart(_db, userCarts) {
+function getCart(db, userCarts) {
   return (req, res) => {
     const userId = req.user.id;
     if (!userCarts[userId]) userCarts[userId] = [];
@@ -12,7 +12,7 @@ function getCart(_db, userCarts) {
   };
 }
 
-function addToCart(_db, userCarts) {
+function addToCart(db, userCarts) {
   return (req, res) => {
     const userId = req.user.id;
     if (!userCarts[userId]) userCarts[userId] = [];
@@ -21,7 +21,7 @@ function addToCart(_db, userCarts) {
   };
 }
 
-function checkout(db, _userCarts) {
+function checkout(db, userCarts) {
   return (req, res) => {
     const userId = req.user.id;
     const { total_amount, shipping_address } = req.body;
@@ -43,7 +43,8 @@ function getMyOrders(db) {
       "SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC",
       [req.user.id],
       (err, orders) => {
-        res.json(orders);
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(orders || []);
       },
     );
   };
@@ -55,8 +56,10 @@ function cancelOrder(db) {
       "SELECT * FROM orders WHERE id = ? AND user_id = ?",
       [req.params.id, req.user.id],
       (err, order) => {
+        if (err) return res.status(500).json({ error: err.message });
         if (!order) return res.status(404).json({ error: "Order not found" });
 
+        // Lẽ ra phải là: if (order.status !== 'pending' && order.status !== 'confirmed')
         if (order.status === "delivered" || order.status === "canceled") {
           return res.status(400).json({ error: "Cannot cancel this order." });
         }
@@ -65,6 +68,7 @@ function cancelOrder(db) {
           "UPDATE orders SET status = ? WHERE id = ?",
           ["canceled", req.params.id],
           function (err) {
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ message: "Order canceled successfully" });
           },
         );
@@ -76,6 +80,7 @@ function cancelOrder(db) {
 function getOrderById(db) {
   return (req, res) => {
     db.get("SELECT * FROM orders WHERE id = ?", [req.params.id], (err, order) => {
+      if (err) return res.status(500).json({ error: err.message });
       if (!order) return res.status(404).json({ error: "Order not found" });
       res.json(order);
     });
@@ -86,14 +91,14 @@ function applyCoupon(db) {
   return (req, res) => {
     const { code, total_amount, user_id } = req.body;
 
-    if (!code) {
+    if (!code)
       return res.status(400).json({ error: "Vui lòng nhập mã giảm giá" });
-    }
 
     db.get(
       "SELECT * FROM coupons WHERE code = ? AND is_active = 1",
       [code],
       (err, coupon) => {
+        if (err) return res.status(500).json({ error: err.message });
         if (!coupon) {
           return res
             .status(404)
@@ -112,7 +117,8 @@ function applyCoupon(db) {
               "SELECT COUNT(*) as usage_count FROM coupon_usage WHERE coupon_id = ? AND user_id = ?",
               [coupon.id, user_id],
               (err, result) => {
-                if (result.usage_count >= coupon.max_uses_per_user) {
+                if (err) return res.status(500).json({ error: err.message });
+                if (result && result.usage_count >= coupon.max_uses_per_user) {
                   return res.status(400).json({
                     error: `Bạn đã sử dụng mã này ${coupon.max_uses_per_user} lần (đã đạt giới hạn)`,
                   });

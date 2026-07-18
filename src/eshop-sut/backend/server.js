@@ -112,6 +112,7 @@ app.delete("/api/categories/:id", authenticateToken, (req, res) => {
 app.get("/api/cart", authenticateToken, getCart(db, userCarts));
 app.post("/api/cart", authenticateToken, addToCart(db, userCarts));
 app.post("/api/checkout", authenticateToken, checkout(db, userCarts));
+
 app.get("/api/orders/my-orders", authenticateToken, getMyOrders(db));
 app.put("/api/orders/:id/cancel", authenticateToken, cancelOrder(db));
 app.get("/api/orders/:id", getOrderById(db));

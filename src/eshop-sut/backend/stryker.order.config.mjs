@@ -1,20 +1,8 @@
-/**
- * Mutation configuration for Cart + Coupon + Checkout/Order APIs.
- *
- * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
- */
 export default {
   packageManager: "npm",
   testRunner: "jest",
   reporters: ["html", "clear-text", "progress"],
-  htmlReporter: {
-    fileName: "reports/mutation-order/mutation.html",
-  },
   mutate: ["services/orderService.js"],
-  testFiles: ["tests/orders.api.test.js"],
-  jest: {
-    configFile: "jest.order.config.cjs",
-  },
   coverageAnalysis: "perTest",
   thresholds: {
     high: 80,
