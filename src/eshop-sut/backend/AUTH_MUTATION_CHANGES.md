@@ -1,3 +1,247 @@
+# TỔNG HỢP CHI TIẾT CÁC THAY ĐỔI (AUTH MUTATION TESTING FIX)
+
+Tài liệu này tổng hợp toàn bộ nguyên nhân, giải pháp và mã nguồn đầy đủ của tất cả các file đã được tạo mới hoặc chỉnh sửa để giải quyết triệt để sự cố crash/errors và nâng Mutation Score cho module **Auth (`services/authService.js`)**.
+
+---
+
+## I. TÓM TẮT THAY ĐỔI
+- **TỔNG SỐ FILE ẢNH HƯỞNG**: 4 file (`stryker.auth.config.mjs`, `jest.auth.config.cjs`, `database.js`, `__tests__/auth.api.test.js`).
+- **MỤC TIÊU**:
+  1. Fix crash/errors (0xC0000005, SQLITE_BUSY, no such table): Đưa `# errors` về ~0.
+  2. Cô lập SQLite database giữa các worker của Jest/Stryker.
+  3. Thêm test suite cho 3 endpoint chưa có coverage (`forgotPassword`, `resetPassword`, `updateCurrentUser`), nâng score ≥ 80%.
+
+---
+
+## II. CHI TIẾT TỪNG FILE VÀ MÃ NGUỒN ĐẦY ĐỦ
+
+---
+
+### 1. `stryker.auth.config.mjs` (CHỈNH SỬA)
+- **Đường dẫn**: `src/eshop-sut/backend/stryker.auth.config.mjs`
+- **Vị trí thay đổi**: Thêm các options `htmlReporter`, `testFiles`, `jest`, `ignoreStatic`.
+- **Lý do**:
+  - `testFiles` & `jest.configFile`: Giới hạn phạm vi test chỉ chạy `auth.api.test.js` (tránh nạp 73 test của product/order).
+  - `jest.enableFindRelatedTests: false`: Ngăn Stryker tự ý tìm kiếm và chạy thêm test không liên quan.
+  - `ignoreStatic: true`: Loại bỏ 37 static mutant không thể map theo từng test, giúp tăng tốc và tránh crash worker.
+
+#### Mã nguồn đầy đủ:
+```javascript
+/**
+ * Mutation baseline for the real EShop authentication/user APIs.
+ *
+ * This config mutates the real Auth/User service used by server.js routes.
+ *
+ * Fixes applied:
+ *  - testFiles: scope Stryker to ONLY auth test (was loading all 73 tests).
+ *  - jest.configFile: use dedicated jest.auth.config.cjs to avoid picking up
+ *    product/order tests whose workers race on database.sqlite.
+ *  - jest.enableFindRelatedTests: false → prevent Stryker from auto-expanding
+ *    the test set via --findRelatedTests.
+ *  - ignoreStatic: true → drop 37 static mutants (top-level SECRET_KEY, etc.)
+ *    that cannot be tracked per-test and caused worker crashes.
+ *  - htmlReporter.fileName: dedicated output, does not overwrite other reports.
+ *
+ * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
+ */
+export default {
+  packageManager: "npm",
+  testRunner: "jest",
+  reporters: ["html", "clear-text", "progress"],
+  htmlReporter: {
+    fileName: "reports/mutation-auth/mutation.html",
+  },
+  mutate: ["services/authService.js"],
+  // --- SCOPE FIX: only run auth tests ---
+  testFiles: ["__tests__/auth.api.test.js"],
+  jest: {
+    projectType: "custom",
+    configFile: "jest.auth.config.cjs",
+    enableFindRelatedTests: false,
+  },
+  // Drop top-level static mutants that cannot be mapped per-test
+  ignoreStatic: true,
+  coverageAnalysis: "perTest",
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 0,
+  },
+  timeoutMS: 10000,
+};
+```
+
+---
+
+### 2. `jest.auth.config.cjs` (TẠO MỚI)
+- **Đường dẫn**: `src/eshop-sut/backend/jest.auth.config.cjs`
+- **Tình trạng**: File mới 100%.
+- **Lý do**: Cung cấp cấu hình Jest riêng biệt cho Auth, dùng `rootDir: __dirname` để định vị tuyệt đối thư mục backend kể cả khi Stryker thực thi trong sandbox tạm thời `.stryker-tmp/`.
+
+#### Mã nguồn đầy đủ:
+```javascript
+// Jest config dành riêng cho auth mutation testing.
+//
+// QUAN TRỌNG: Dùng __dirname (không phải CWD) để anchor rootDir,
+// vì Stryker chạy test từ .stryker-tmp/ sandbox → relative path sẽ sai.
+// Pattern này đã được chứng minh hoạt động ở jest.order.config.cjs.
+//
+// roots + testMatch kết hợp để đảm bảo:
+//   1. Chỉ quét thư mục __tests__/ (bỏ qua tests/)
+//   2. Chỉ chạy đúng 1 file auth.api.test.js
+module.exports = {
+  rootDir: __dirname,
+  roots: ["<rootDir>/__tests__"],
+  testMatch: ["**/__tests__/auth.api.test.js"],
+  testEnvironment: "node",
+};
+```
+
+---
+
+### 3. `database.js` (CHỈNH SỬA)
+- **Đường dẫn**: `src/eshop-sut/backend/database.js`
+- **Vị trí thay đổi**: Thay đổi dòng 4–10 (khởi tạo `dbPath`).
+- **Lý do**: Khi chạy dưới dạng Jest worker (xác định qua `process.env.JEST_WORKER_ID`), SQLite sẽ chuyển sang dùng `:memory:`. Mỗi worker sở hữu 1 database riêng trong bộ nhớ RAM, giải quyết dứt điểm lỗi tranh chấp file `database.sqlite` (`SQLITE_BUSY`, crash `0xC0000005`). Production (`node server.js`) giữ nguyên 100% không ảnh hưởng.
+
+#### Mã nguồn đầy đủ:
+```javascript
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+// When running inside a Jest worker (JEST_WORKER_ID is set by Jest automatically),
+// use an in-memory DB so each of the ~15 parallel Stryker workers gets its own
+// isolated database with no file locking. Production (node server.js) has no
+// JEST_WORKER_ID → behaviour is completely unchanged.
+const dbPath = process.env.JEST_WORKER_ID
+    ? ':memory:'
+    : path.resolve(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Could not connect to database', err);
+    } else {
+        console.log('Connected to database');
+    }
+});
+
+function initDatabase() {
+    db.serialize(() => {
+        db.run('DROP TABLE IF EXISTS coupon_usage');
+        db.run('DROP TABLE IF EXISTS coupons');
+        db.run('DROP TABLE IF EXISTS users');
+        db.run('DROP TABLE IF EXISTS products');
+        db.run('DROP TABLE IF EXISTS categories');
+        db.run('DROP TABLE IF EXISTS orders');
+
+        // Create Categories Table
+        db.run(`CREATE TABLE categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT
+        )`);
+
+        // Create Coupons Table
+        db.run(`CREATE TABLE coupons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE,
+            type TEXT DEFAULT 'percent',
+            discount_value INTEGER,
+            min_order_amount INTEGER DEFAULT 0,
+            expired_at DATETIME,
+            is_active INTEGER DEFAULT 1,
+            max_uses_per_user INTEGER DEFAULT 1
+        )`);
+
+        // Create Coupon Usage Table
+        db.run(`CREATE TABLE coupon_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            coupon_id INTEGER,
+            user_id INTEGER,
+            used_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // Create Users Table
+        // Added columns for Phase 2 & 3: login_attempts, locked_until, reset_token, shipping_address, phone
+        db.run(`CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT UNIQUE,
+            password TEXT,
+            role TEXT DEFAULT 'user',
+            login_attempts INTEGER DEFAULT 0,
+            locked_until DATETIME,
+            reset_token TEXT,
+            shipping_address TEXT,
+            phone TEXT
+        )`);
+
+        // Create Products Table
+        db.run(`CREATE TABLE products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            price INTEGER,
+            description TEXT,
+            imageUrl TEXT,
+            category_id INTEGER
+        )`);
+
+        // Create Orders Table
+        db.run(`CREATE TABLE orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            total_amount INTEGER,
+            status TEXT DEFAULT 'pending',
+            shipping_address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // Seed Categories
+        const insertCategory = db.prepare('INSERT INTO categories (name) VALUES (?)');
+        insertCategory.run('Điện thoại');
+        insertCategory.run('Laptop');
+        insertCategory.run('Phụ kiện');
+        insertCategory.finalize();
+
+        // Seed Users
+        const insertUser = db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
+        insertUser.run('Admin User', 'admin@eshop.com', 'Admin123!', 'admin');
+        insertUser.run('Test User', 'test@eshop.com', 'Test1234!', 'user');
+        insertUser.finalize();
+
+        // Seed Products
+        const insertProduct = db.prepare('INSERT INTO products (name, price, description, imageUrl, category_id) VALUES (?, ?, ?, ?, ?)');
+        insertProduct.run('iPhone 15 Pro Max', 30000000, 'Điện thoại cao cấp của Apple', 'https://placehold.co/300x300/png?text=iPhone+15', 1);
+        insertProduct.run('Samsung Galaxy S24 Ultra', 28000000, 'Màn hình hiển thị xuất sắc, camera siêu zoom', 'https://placehold.co/300x300/png?text=Samsung+S24', 1);
+        insertProduct.run('MacBook Pro M3', 45000000, 'Laptop chuyên nghiệp mạnh mẽ', 'https://placehold.co/300x300/png?text=Macbook+Pro', 2);
+        insertProduct.run('Tai nghe AirPods Pro 2', 6000000, 'Chống ồn chủ động xuất sắc', 'https://placehold.co/300x300/png?text=AirPods+Pro', 3);
+        insertProduct.run('Bàn phím cơ Keychron Q1', 4000000, 'Gõ cực sướng, thiết kế kim loại', 'https://placehold.co/300x300/png?text=Keychron+Q1', 3);
+        insertProduct.finalize();
+
+        // Seed Coupons
+        const insertCoupon = db.prepare('INSERT INTO coupons (code, type, discount_value, min_order_amount, expired_at, is_active, max_uses_per_user) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        insertCoupon.run('SAVE10', 'percent', 10, 300000, '2099-12-31', 1, 1);   // 10% off, min 300k, valid
+        insertCoupon.run('BIGBUY', 'fixed', 50000, 500000, '2099-12-31', 1, 1);  // 50k off, min 500k, valid
+        insertCoupon.run('VIP100', 'fixed', 100000, 300000, '2099-12-31', 1, 2); // 100k off, min 300k, max 2 uses
+        insertCoupon.run('EXPIRED', 'percent', 20, 100000, '2020-01-01', 1, 1);  // 20% off, EXPIRED
+        insertCoupon.finalize();
+
+        console.log('Database initialized and seeded (Phase 2).');
+    });
+}
+
+initDatabase();
+
+module.exports = db;
+```
+
+---
+
+### 4. `__tests__/auth.api.test.js` (CHỈNH SỬA / THÊM TEST)
+- **Đường dẫn**: `src/eshop-sut/backend/__tests__/auth.api.test.js`
+- **Vị trí thay đổi**: Bổ sung helper `registerAndLogin` và 3 describe block test mới từ dòng 181 đến 370.
+- **Lý do**: 47 mutant no-coverage trước đó nằm ở 3 endpoint chưa từng được test: `forgotPassword`, `resetPassword`, `updateCurrentUser`. Việc bổ sung test đầy đủ các nhánh thành công lẫn nhánh lỗi giúp tiêu diệt (kill) các mutant này.
+
+#### Mã nguồn đầy đủ:
+```javascript
 const jwt = require("jsonwebtoken");
 const request = require("supertest");
 const app = require("../server");
@@ -367,4 +611,4 @@ describe("updateCurrentUser (PUT /api/users/me)", () => {
     expect(res.body).toEqual({ error: "DB write failure" });
   });
 });
-
+```

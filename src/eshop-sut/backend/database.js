@@ -1,7 +1,14 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, 'database.sqlite');
+// When running inside a Jest worker (JEST_WORKER_ID is set by Jest automatically),
+// use an in-memory DB so each of the ~15 parallel Stryker workers gets its own
+// isolated database with no file locking. Production (node server.js) has no
+// JEST_WORKER_ID → behaviour is completely unchanged.
+const isStryker = __dirname.includes('.stryker-tmp') || process.env.JEST_WORKER_ID;
+const dbPath = isStryker
+    ? ':memory:'
+    : path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Could not connect to database', err);

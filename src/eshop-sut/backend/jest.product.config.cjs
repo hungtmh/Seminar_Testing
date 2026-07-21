@@ -1,3 +1,6 @@
 module.exports = {
-  testMatch: ["<rootDir>/tests/admin-products.api.test.js"],
+  rootDir: __dirname,
+  roots: ["<rootDir>/tests"],
+  testMatch: ["**/admin-products.api.test.js"],
+  testEnvironment: "node",
 };
