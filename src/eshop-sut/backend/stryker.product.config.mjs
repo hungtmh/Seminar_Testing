@@ -11,9 +11,9 @@ export default {
     fileName: "reports/mutation-product/mutation.html",
   },
   mutate: ["services/productService.js"],
-  testFiles: ["tests/admin-products.api.test.js"],
   jest: {
     configFile: "jest.product.config.cjs",
+    enableFindRelatedTests: false,
   },
   coverageAnalysis: "perTest",
   thresholds: {
