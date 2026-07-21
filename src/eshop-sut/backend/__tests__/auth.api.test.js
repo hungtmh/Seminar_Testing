@@ -177,3 +177,194 @@ describe("authentication API improved tests", () => {
     );
   });
 });
+
+// ============================================================
+// Part B: Tests for previously uncovered endpoints
+// forgotPassword, resetPassword, updateCurrentUser
+// These 3 functions had 47 no-coverage mutants.
+// ============================================================
+
+/** Helper: register a user, login, return { user, token } */
+async function registerAndLogin(overrides = {}) {
+  const user = await registerUser(overrides);
+  const loginRes = await request(app)
+    .post("/api/login")
+    .send({ email: user.email, password: user.password });
+  expect(loginRes.status).toBe(200);
+  return { user, token: loginRes.body.token };
+}
+
+describe("forgotPassword API", () => {
+  test("returns 200 and a resetToken for an existing user", async () => {
+    const { user } = await registerAndLogin();
+
+    const res = await request(app)
+      .post("/api/forgot-password")
+      .send({ email: user.email });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        message: "Mã đặt lại mật khẩu đã được tạo",
+        resetToken: expect.stringMatching(/^\d{4}$/),
+      }),
+    );
+  });
+
+  test("returns 404 when the email is not registered", async () => {
+    const res = await request(app)
+      .post("/api/forgot-password")
+      .send({ email: uniqueEmail("ghost") });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "User not found" });
+  });
+});
+
+describe("resetPassword API", () => {
+  test("resets the password with a valid token and allows re-login", async () => {
+    const { user } = await registerAndLogin();
+
+    // Step 1: get a reset token
+    const forgotRes = await request(app)
+      .post("/api/forgot-password")
+      .send({ email: user.email });
+    expect(forgotRes.status).toBe(200);
+    const { resetToken } = forgotRes.body;
+
+    // Step 2: reset password
+    const resetRes = await request(app).post("/api/reset-password").send({
+      email: user.email,
+      resetToken,
+      newPassword: "NewPassword456!",
+    });
+
+    expect(resetRes.status).toBe(200);
+    expect(resetRes.body).toEqual({ message: "Password reset successfully" });
+
+    // Step 3: verify new password works
+    const loginRes = await request(app).post("/api/login").send({
+      email: user.email,
+      password: "NewPassword456!",
+    });
+    expect(loginRes.status).toBe(200);
+  });
+
+  test("returns 400 when the token is wrong", async () => {
+    const { user } = await registerAndLogin();
+
+    const res = await request(app).post("/api/reset-password").send({
+      email: user.email,
+      resetToken: "0000",
+      newPassword: "AnyPassword1!",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid token or email" });
+  });
+
+  test("returns 400 when the email does not match", async () => {
+    const { user } = await registerAndLogin();
+
+    // Get a valid token for user
+    const forgotRes = await request(app)
+      .post("/api/forgot-password")
+      .send({ email: user.email });
+    const { resetToken } = forgotRes.body;
+
+    // Use correct token but wrong email
+    const res = await request(app).post("/api/reset-password").send({
+      email: uniqueEmail("wrong"),
+      resetToken,
+      newPassword: "AnyPassword1!",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid token or email" });
+  });
+});
+
+describe("updateCurrentUser (PUT /api/users/me)", () => {
+  test("returns 401 when no token is provided", async () => {
+    const res = await request(app).put("/api/users/me").send({
+      name: "No Token User",
+      shipping_address: "123 Street",
+      phone: "0900000000",
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Unauthorized" });
+  });
+
+  test("updates profile without role field and returns 200", async () => {
+    const { token } = await registerAndLogin();
+
+    const res = await request(app)
+      .put("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Updated Name",
+        shipping_address: "456 New Road",
+        phone: "0911111111",
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: "Profile updated" });
+
+    // Verify the change was persisted
+    const profileRes = await request(app)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${token}`);
+    expect(profileRes.status).toBe(200);
+    expect(profileRes.body).toMatchObject({
+      name: "Updated Name",
+      shipping_address: "456 New Road",
+      phone: "0911111111",
+    });
+  });
+
+  test("updates profile WITH role field (covers the if-role branch)", async () => {
+    const { token } = await registerAndLogin();
+
+    const res = await request(app)
+      .put("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Role Updated User",
+        shipping_address: "789 Admin Ave",
+        phone: "0922222222",
+        role: "user", // triggers `if (role)` branch in updateCurrentUser
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: "Profile updated" });
+  });
+
+  test("returns 500 when the DB update fails (unit-level)", () => {
+    const dbError = new Error("DB write failure");
+    const fakeDb = {
+      run: (_sql, _params, callback) => callback.call({ changes: 0 }, dbError),
+    };
+    const req = {
+      user: { id: 99 },
+      body: {
+        name: "Broken User",
+        shipping_address: "Nowhere",
+        phone: "0000000000",
+      },
+    };
+    const res = {
+      statusCode: 200,
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; return this; },
+    };
+
+    const { updateCurrentUser } = require("../services/authService");
+    updateCurrentUser(fakeDb)(req, res);
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ error: "DB write failure" });
+  });
+});
+
