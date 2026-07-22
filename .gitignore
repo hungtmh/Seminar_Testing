@@ -1,1 +1,10 @@
-
+docs/report_nvk.md
+node_modules/
+**/node_modules/
+.stryker-tmp/
+**/.stryker-tmp/
+*.sqlite
+*.log
+.DS_Store
+dist/
+build/
