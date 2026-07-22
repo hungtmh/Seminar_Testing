@@ -1,3 +1,3 @@
 module.exports = {
-  testMatch: ["<rootDir>/tests/orders.api.baseline.test.js"],
+  testMatch: ["**/tests/orders.api.baseline.test.js"],
 };
