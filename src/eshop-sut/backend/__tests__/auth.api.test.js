@@ -366,5 +366,46 @@ describe("updateCurrentUser (PUT /api/users/me)", () => {
     expect(res.statusCode).toBe(500);
     expect(res.body).toEqual({ error: "DB write failure" });
   });
+
+  test("allows login when account lockout time (locked_until) has expired in the past", async () => {
+    const db = require("../database");
+    const user = await registerUser();
+    const pastDate = new Date(Date.now() - 3600 * 1000).toISOString();
+
+    await new Promise((resolve) => {
+      db.run("UPDATE users SET locked_until = ? WHERE email = ?", [pastDate, user.email], resolve);
+    });
+
+    const res = await request(app)
+      .post("/api/login")
+      .send({ email: user.email, password: user.password });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+  });
+
+  test("resets login_attempts to 0 in database after a successful login", async () => {
+    const db = require("../database");
+    const user = await registerUser();
+
+    await new Promise((resolve) => {
+      db.run("UPDATE users SET login_attempts = 2 WHERE email = ?", [user.email], resolve);
+    });
+
+    const res = await request(app)
+      .post("/api/login")
+      .send({ email: user.email, password: user.password });
+
+    expect(res.status).toBe(200);
+
+    const updatedUser = await new Promise((resolve) => {
+      db.get("SELECT login_attempts, locked_until FROM users WHERE email = ?", [user.email], (err, row) => resolve(row));
+    });
+
+    expect(updatedUser.login_attempts).toBe(0);
+    expect(updatedUser.locked_until).toBeNull();
+  });
 });
+
+
 

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presentation — Mutation Testing & Test Effectiveness (Group 08)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-main: #0b0f19;
+    --bg-card: rgba(22, 30, 46, 0.85);
+    --border-color: rgba(255, 255, 255, 0.12);
+    --accent-blue: #38bdf8;
+    --accent-indigo: #818cf8;
+    --accent-purple: #c084fc;
+    --accent-green: #4ade80;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    background-image: 
+      radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+  }
+
+  /* Progress Bar */
+  #progress-bar {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-indigo), var(--accent-purple));
+    width: 0%;
+    transition: width 0.3s ease;
+    z-index: 100;
+  }
+
+  /* Slides Container */
+  #deck {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 4px);
+  }
+
+  .slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 2.5rem 4rem 4.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.96) translateY(10px);
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
+    overflow-y: auto;
+    background-color: var(--bg-main);
+  }
+
+  .slide.active {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1) translateY(0);
+  }
+
+  .slide-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* Typography & Elements */
+  h1 {
+    font-size: 2.3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+    line-height: 1.25;
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  h3 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+  }
+
+  em {
+    color: var(--accent-purple);
+    font-style: normal;
+    font-weight: 500;
+    background: rgba(192, 132, 252, 0.12);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(192, 132, 252, 0.25);
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  strong {
+    color: #fff;
+  }
+
+  ul, ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  li {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #d1d5db;
+    margin-bottom: 0.5rem;
+  }
+
+  blockquote {
+    background: var(--bg-card);
+    border-left: 4px solid var(--accent-blue);
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.25rem 0;
+    backdrop-filter: blur(8px);
+  }
+
+  blockquote p {
+    margin-bottom: 0;
+    color: #9ca3af;
+    font-size: 1.05rem;
+  }
+
+  /* Code Block */
+  pre {
+    background: #0d1117;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.98rem;
+    color: #38bdf8;
+  }
+
+  pre code {
+    color: #e6edf3;
+    line-height: 1.5;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1.25rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+  }
+
+  th, td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.05rem;
+  }
+
+  th {
+    background: rgba(30, 41, 59, 0.85);
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Slide Footer */
+  .slide-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  /* Controls Overlay */
+  #controls {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  }
+
+  .btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+  }
+
+  .btn:hover {
+    background: var(--accent-blue);
+    color: #000;
+    transform: scale(1.08);
+  }
+
+  #slide-indicator {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 65px;
+    text-align: center;
+  }
+
+  /* Keyboard hint */
+  #key-hint {
+    position: fixed;
+    bottom: 1.75rem;
+    left: 2rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: rgba(15, 23, 42, 0.6);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+  }
+
+  /* PRINT STYLES FOR VISUAL SLIDES IN PDF */
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+    html, body {
+      background-color: #0b0f19 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    #progress-bar, #controls, #key-hint {
+      display: none !important;
+    }
+    #deck {
+      height: auto !important;
+      position: static !important;
+    }
+    .slide {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+      page-break-after: always !important;
+      page-break-inside: avoid !important;
+      height: 210mm !important;
+      width: 297mm !important;
+      box-sizing: border-box !important;
+      padding: 18mm 24mm !important;
+      background-color: #0b0f19 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<div id="deck">
+  
+    <section class="slide active" id="slide-1">
+      <div class="slide-content">
+        <h1>🧬 Slide Thuyết Trình Seminar T10 — Mutation Testing &amp; Test Effectiveness</h1>
+<blockquote>
+<p><strong>Môn học:</strong> CS423 / CSC15003 — Kiểm thử phần mềm (FIT@HCMUS)<br><strong>GVHD:</strong> ThS. Hồ Tuấn Thanh<br><strong>Nhóm thực hiện:</strong> Nhóm 08<br><strong>Thành viên:</strong>  </p>
+<ul>
+<li>23127195 — Trần Mạnh Hùng  </li>
+<li>23127060 — Ninh Văn Khải  </li>
+<li>23127259 — Nguyễn Tấn Thắng</li>
+</ul>
+<p>🎥 <strong>Video Demo (YouTube Unlisted):</strong> <code>&lt;&lt;DÁN_YOUTUBE_UNLISTED_LINK_TẠI_ĐÂY&gt;&gt;</code></p>
+</blockquote>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-2">
+      <div class="slide-content">
+        <h2>Slide 1: Giới thiệu Đề tài &amp; Thành viên Nhóm</h2>
+<p><em>Người phụ trách: Cả Nhóm 08</em></p>
+<h3>Chủ đề Seminar T10: Mutation Testing &amp; Test Effectiveness</h3>
+<ul>
+<li><strong>Đơn vị:</strong> Khoa Công nghệ Thông tin — Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM.</li>
+<li><strong>Ứng dụng thực nghiệm (SUT):</strong> Backend EShop (Node.js / Express / SQLite).</li>
+<li><strong>Thành viên nhóm:</strong><ol>
+<li><strong>23127195 - Trần Mạnh Hùng</strong> <em>(Nhóm trưởng / DevOps)</em>: Infrastructure, Auth Module, Stryker Config &amp; Fix SQLite Crash.</li>
+<li><strong>23127060 - Ninh Văn Khải</strong> <em>(QA / AI Specialist)</em>: Order/Coupon Module, AI Audit Pack, Activity &quot;Kill the Mutant&quot;.</li>
+<li><strong>23127259 - Nguyễn Tấn Thắng</strong> <em>(Tech Writer / Tester)</em>: Product/Admin Module (100%), User Guide, Failure Modes &amp; Slides.</li>
+</ol>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-3">
+      <div class="slide-content">
+        <h2>Slide 2: Đặt vấn đề — Vì sao Code Coverage &quot;biết nói dối&quot;?</h2>
+<p><em>Người phụ trách: 23127195 - Trần Mạnh Hùng</em></p>
+<h3>Hạn chế cốt lõi của Code Coverage truyền thống</h3>
+<ul>
+<li><strong>Code Coverage chỉ đo dòng code được chạy qua</strong>, KHÔNG đo khả năng phát hiện lỗi logic của bài test.</li>
+<li><strong>Ví dụ minh họa:</strong></li>
+</ul>
+<pre><code class="language-javascript">function isAdult(age) {
+  return age &gt;= 18; // Code logic gốc
+}
+test(&#39;check adult&#39;, () =&gt; {
+  expect(isAdult(20)).toBe(true); // Test đạt 100% Line Coverage!
+});
+</code></pre>
+<ul>
+<li><strong>Vấn đề:</strong> Nếu lập trình viên sửa <code>&gt;=</code> thành <code>&gt;</code>, test trên <strong>vẫn PASS 100%</strong>, nhưng logic 18 tuổi đã bị lỗi!</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-4">
+      <div class="slide-content">
+        <h2>Slide 3: Nền tảng Lý thuyết Mutation Testing</h2>
+<p><em>Người phụ trách: 23127195 - Trần Mạnh Hùng</em></p>
+<h3>Nguyên lý hoạt động của Mutation Testing</h3>
+<ol>
+<li>Công cụ tự động chèn lỗi cố ý (<strong>Mutants</strong>) vào mã nguồn gốc.</li>
+<li>Chạy toàn bộ bộ test suite trên từng Mutant.</li>
+<li><strong>Các trạng thái của Mutant:</strong><ul>
+<li>🟢 <strong>Killed (Đã diệt):</strong> Ít nhất 1 test case bị FAIL $\rightarrow$ Test nhạy bén, bắt được lỗi.</li>
+<li>🔴 <strong>Survived (Sống sót):</strong> Tất cả test vẫn PASS $\rightarrow$ Bộ test yếu, có lỗ hổng assertion.</li>
+<li>⏱️ <strong>Timeout:</strong> Mutant gây lặp vô tận $\rightarrow$ Ghi nhận đã bắt được.</li>
+<li>⚪ <strong>NoCoverage:</strong> Không có test nào chạy qua dòng code chứa mutant.</li>
+</ul>
+</li>
+</ol>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-5">
+      <div class="slide-content">
+        <h2>Slide 4: Khảo sát &amp; Chọn lựa Công cụ (Tool Survey)</h2>
+<p><em>Người phụ trách: 23127195 - Trần Mạnh Hùng</em></p>
+<h3>So sánh &amp; Quyết định Chọn lựa</h3>
+<ul>
+<li><strong>Công cụ truyền thống:</strong> Chọn <strong>Stryker Mutator (JS/TS)</strong><ul>
+<li><em>Lý do:</em> Tiêu chuẩn vàng cho Node.js/Express, hỗ trợ Jest runner, xuất báo cáo HTML trực quan và chế độ <code>coverageAnalysis: &quot;perTest&quot;</code>.</li>
+</ul>
+</li>
+<li><strong>Công cụ AI-Augmented:</strong> Chọn <strong>ChatGPT / Claude (Prompt-based LLM)</strong><ul>
+<li><em>Lý do:</em> EShop viết bằng Node.js, không dùng được DiffBlue Cover (chỉ cho Java). Phối hợp LLM giúp phân tích code diff của mutant sống và gợi ý câu lệnh <code>expect()</code> chính xác.</li>
+</ul>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-6">
+      <div class="slide-content">
+        <h2>Slide 5: Kiến trúc SUT EShop &amp; Cấu hình Phân vùng (Scoped Config)</h2>
+<p><em>Người phụ trách: 23127259 - Nguyễn Tấn Thắng</em></p>
+<h3>Refactor SUT &amp; Scoped Stryker Configuration</h3>
+<ul>
+<li>Refactor các route từ <code>server.js</code> sang 3 service riêng biệt:<ul>
+<li><code>services/authService.js</code> (Authentication &amp; User Profile)</li>
+<li><code>services/orderService.js</code> (Cart, Order &amp; Coupon)</li>
+<li><code>services/productService.js</code> (Product CRUD &amp; Admin Orders)</li>
+</ul>
+</li>
+<li><strong>Tạo cấu hình Stryker cô lập từng module (<code>stryker.*.config.mjs</code>):</strong><ul>
+<li>Tránh tình trạng Stryker nạp nhầm test module khác gây xung đột DB và chạy chậm hàng giờ.</li>
+</ul>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-7">
+      <div class="slide-content">
+        <h2>Slide 6: Kết quả Thực nghiệm — Hành trình Nâng điểm Mutation Score</h2>
+<p><em>Người phụ trách: 23127259 - Nguyễn Tấn Thắng</em></p>
+<h3>Bảng tổng hợp Kết quả 3 Module trên Backend EShop (52/52 Tests PASSED)</h3>
+<table>
+<thead>
+<tr>
+<th>Module EShop</th>
+<th align="right">Số Test Jest</th>
+<th align="right">Baseline Score</th>
+<th align="right">Improved Score</th>
+<th align="right">Final Score</th>
+<th align="right">Killed / Valid Mutants</th>
+<th align="center">Trạng thái</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Cart / Coupon / Order</strong></td>
+<td align="right">21</td>
+<td align="right">16.67%</td>
+<td align="right">84.21%</td>
+<td align="right"><strong>92.57%</strong></td>
+<td align="right">154 / 175 (8 Timeout)</td>
+<td align="center">🟢 Đạt xuất sắc</td>
+</tr>
+<tr>
+<td><strong>Authentication / User</strong></td>
+<td align="right">19</td>
+<td align="right">31.30%</td>
+<td align="right">59.83%</td>
+<td align="right"><strong>87.16%</strong></td>
+<td align="right">80 / 91 (11 Survived)</td>
+<td align="center">🟢 Đạt xuất sắc</td>
+</tr>
+<tr>
+<td><strong>Product / Admin APIs</strong></td>
+<td align="right">18</td>
+<td align="right">— (*)</td>
+<td align="right">—</td>
+<td align="right"><strong>100.00%</strong></td>
+<td align="right">165 / 165 (11 Timeout)</td>
+<td align="center">🟢 Đạt tối đa tuyệt đối</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>(*) Product Module viết assertion đầy đủ ngay từ đầu dựa trên kinh nghiệm tích lũy từ 2 module trước.</p>
+</blockquote>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-8">
+      <div class="slide-content">
+        <h2>Slide 7: Phân tích Chi tiết Mutant 1 — Cart State &amp; Assertion Fix</h2>
+<p><em>Người phụ trách: 23127060 - Ninh Văn Khải</em></p>
+<h3>Mutant 1: Khởi tạo Giỏ hàng bị chèn Rác</h3>
+<ul>
+<li><strong>Code gốc:</strong> <code>if (!userCarts[userId]) userCarts[userId] = [];</code></li>
+<li><strong>Stryker Mutate:</strong> <code>if (!userCarts[userId]) userCarts[userId] = [&quot;Stryker was here&quot;];</code></li>
+<li><strong>Vì sao Survived?</strong> Test baseline chỉ kiểm tra HTTP status <code>200 OK</code>, không kiểm tra body giỏ hàng trả về.</li>
+<li><strong>Kỹ thuật Diệt Mutant:</strong></li>
+</ul>
+<pre><code class="language-javascript">// Bổ sung Assertion kiểm tra mảng rỗng chính xác:
+expect(res.body).toEqual([]);
+expect(res.body.length).toBe(0);
+</code></pre>
+<ul>
+<li><strong>Kết quả:</strong> Mutant bị <strong>Killed</strong> ngay lập tức!</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-9">
+      <div class="slide-content">
+        <h2>Slide 8: Phân tích Chi tiết Mutant 2 — Coupon Boundary &amp; Phát hiện Bug Thật</h2>
+<p><em>Người phụ trách: 23127060 - Ninh Văn Khải</em></p>
+<h3>Mutant 2: Ranh giới Số lần Sử dụng Coupon</h3>
+<ul>
+<li><strong>Code gốc:</strong> <code>if (usage_count &gt;= coupon.max_uses_per_user) return res.status(400);</code></li>
+<li><strong>Stryker Mutate:</strong> <code>if (usage_count &gt; coupon.max_uses_per_user) ...</code> (đổi <code>&gt;=</code> thành <code>&gt;</code>)</li>
+<li><strong>Kỹ thuật Diệt Mutant:</strong> Áp dụng Boundary Value Analysis (BVA), tạo test case với <code>usage_count = max_uses</code> $\rightarrow$ assert lỗi <code>400</code>.</li>
+<li><strong>🚨 HIGHLIGHT — PHÁT HIỆN BUG THẬT TRONG ESHOP:</strong><ul>
+<li>Logic giảm giá % trong code gốc EShop bị sai: <code>1 - discount_value</code> thay vì <code>discount_value / 100</code>.</li>
+<li>Nhóm giữ nguyên logic gốc và viết assertion kiểm chứng đúng hành vi hiện tại $\rightarrow$ Chứng minh Mutation Testing giúp phát hiện bug thật!</li>
+</ul>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-10">
+      <div class="slide-content">
+        <h2>Slide 9: Quy trình AI-Augmented &amp; Các Lỗi Sai (Failure Modes) của AI</h2>
+<p><em>Người phụ trách: 23127060 - Ninh Văn Khải</em></p>
+<h3>Quy trình Mutant-Guided AI Loop &amp; 4 Failure Modes</h3>
+<ul>
+<li><strong>Quy trình:</strong> Stryker Run $\rightarrow$ Export Surviving Diff $\rightarrow$ Prompt LLM $\rightarrow$ Human Verify (Jest/Stryker).</li>
+<li><strong>Các lỗi sai (Failure Modes) phổ biến của AI:</strong><ol>
+<li><strong>Factual Error:</strong> Gợi ý <code>.toBe([])</code> sai cú pháp Jest (phải dùng <code>.toEqual([])</code>).</li>
+<li><strong>Missing Edge Cases:</strong> Bỏ sót các trường hợp Concurrency / Race Condition.</li>
+<li><strong>Silent Assumptions:</strong> Giả định ngầm DB tự reset giữa các test, không tạo <code>beforeEach()</code>.</li>
+<li><strong>Over-confident Statement:</strong> Khẳng định diệt 1 mutant là code &quot;100% bulletproof&quot;.</li>
+</ol>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-11">
+      <div class="slide-content">
+        <h2>Slide 10: Kỹ thuật Sửa lỗi Crash SQLite Database (<code>SQLITE_BUSY</code>)</h2>
+<p><em>Người phụ trách: 23127195 - Trần Mạnh Hùng</em></p>
+<h3>Sự cố Kỹ thuật Chuyên sâu &amp; Giải pháp</h3>
+<ul>
+<li><strong>Sự cố:</strong> Khi Stryker chạy 15 worker song song trên Windows, các worker cùng ghi vào <code>database.sqlite</code> vật lý gây lỗi crash native C++ <code>0xC0000005</code>.</li>
+<li><strong>Giải pháp xử lý trong <code>database.js</code>:</strong></li>
+</ul>
+<pre><code class="language-javascript">// Tự động phát hiện môi trường Jest worker hoặc sandbox Stryker (.stryker-tmp)
+const isStryker = __dirname.includes(&#39;.stryker-tmp&#39;) || process.env.JEST_WORKER_ID;
+const dbPath = isStryker ? &#39;:memory:&#39; : path.resolve(__dirname, &#39;database.sqlite&#39;);
+</code></pre>
+<ul>
+<li><strong>Kết quả:</strong> Xử lý triệt để 100% lỗi crash, giúp Stryker chạy mượt mà đạt điểm tối đa!</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-12">
+      <div class="slide-content">
+        <h2>Slide 11: Hoạt động Lớp học — Game &quot;Kill the Mutant&quot; (25 Phút)</h2>
+<p><em>Người phụ trách: 23127259 - Nguyễn Tấn Thắng</em></p>
+<h3>Kế hoạch Tổ chức Trò chơi Tương tác Lớp học</h3>
+<ul>
+<li><strong>Thời lượng:</strong> 25 phút (nằm trong tổng 45 phút đứng lớp).</li>
+<li><strong>Quy trình 3 bước:</strong><ol>
+<li><strong>10 phút đầu:</strong> Chiếu 5 đoạn code mutant trích từ EShop. Các nhóm thảo luận và viết Assertion ra phiếu/giấy.</li>
+<li><strong>5 phút tiếp:</strong> Tổ chức chấm chéo (Peer Review) giữa các nhóm.</li>
+<li><strong>10 phút cuối:</strong> Nhóm 08 nhập câu lệnh của các nhóm và <strong>chạy live ngay tại chỗ trên màn hình</strong> xem mutant có bị Killed không!</li>
+</ol>
+</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-13">
+      <div class="slide-content">
+        <h2>Slide 12: Bộ Hồ sơ AI Audit Pack Full (AI-02, AI-03, AI-04)</h2>
+<p><em>Người phụ trách: 23127060 - Ninh Văn Khải</em></p>
+<h3>Minh bạch &amp; Trách nhiệm khi Sử dụng AI</h3>
+<ul>
+<li><strong>[AI-02] Audit Report (≥600 từ):</strong> Thống kê 6 sự cố AI làm sai và quy trình kiểm chứng 100% bởi con người.</li>
+<li><strong>[AI-03] AI Disclosure:</strong> Tuyên bố rõ ràng phạm vi sử dụng AI (chỉ dùng hỗ trợ gợi ý assertion và giải thích diff).</li>
+<li><strong>[AI-04] Reflective Statement (300 words English):</strong> Bài thu hoạch phản biện sâu sắc về vai trò của con người trong kỷ nguyên AI-augmented software engineering.</li>
+</ul>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-14">
+      <div class="slide-content">
+        <h2>Slide 13: Bảng Đóng góp Công việc &amp; Bài học Kinh nghiệm</h2>
+<p><em>Người phụ trách: Cả Nhóm 08</em></p>
+<h3>Bảng Phân công Công việc (Tỷ lệ Đóng góp 33.3% mỗi thành viên)</h3>
+<table>
+<thead>
+<tr>
+<th>MSSV</th>
+<th>Họ và tên</th>
+<th>Vai trò</th>
+<th>Hạng mục đóng góp</th>
+<th align="center">Đóng góp</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>23127195</strong></td>
+<td>Trần Mạnh Hùng</td>
+<td>Nhóm trưởng</td>
+<td>Setup Jest/Stryker, Auth Module, Fix SQLite <code>:memory:</code>.</td>
+<td align="center"><strong>33.3%</strong></td>
+</tr>
+<tr>
+<td><strong>23127060</strong></td>
+<td>Ninh Văn Khải</td>
+<td>QA / AI Lead</td>
+<td>Order Module (92.6%), AI Audit Pack, Activity &quot;Kill the Mutant&quot;.</td>
+<td align="center"><strong>33.4%</strong></td>
+</tr>
+<tr>
+<td><strong>23127259</strong></td>
+<td>Nguyễn Tấn Thắng</td>
+<td>Tech Writer</td>
+<td>Product Module (100%), User Guide, Failure Modes &amp; Slides.</td>
+<td align="center"><strong>33.3%</strong></td>
+</tr>
+</tbody></table>
+<hr>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+    <section class="slide " id="slide-15">
+      <div class="slide-content">
+        <h2>Slide 14: Q&amp;A &amp; Link Video Demo (YouTube Unlisted)</h2>
+<p><em>Người phụ trách: Cả Nhóm 08</em></p>
+<h3>Tổng kết &amp; Mở rộng Thảo luận</h3>
+<ul>
+<li>🎥 <strong>Link Video Demo (YouTube Unlisted):</strong> <code>&lt;&lt;DÁN_YOUTUBE_UNLISTED_LINK_TẠI_ĐÂY&gt;&gt;</code></li>
+<li>📁 <strong>Repository &amp; Artifacts:</strong> Thư mục <code>docs/Submition/</code> chứa đầy đủ <code>Final_Report.pdf</code>, <code>Group08_Slides.pdf</code>, và mã nguồn EShop.</li>
+<li>❓ <strong>Xin chân thành cảm ơn Thầy và các bạn đã chú ý theo dõi! Q&amp;A Session.</strong></li>
+</ul>
+      </div>
+      <div class="slide-footer">
+        <span>CS423 / CSC15003 — Seminar T10 (FIT@HCMUS)</span>
+        <span>Nhóm 08</span>
+      </div>
+    </section>
+  
+</div>
+
+<div id="key-hint">⌨️ Dùng phím ⬅️ / ➡️ hoặc Space / Click nút điều khiển để chuyển Slide</div>
+
+<div id="controls">
+  <button class="btn" id="prev-btn" title="Slide trước (⬅️)">◀</button>
+  <span id="slide-indicator">1 / 15</span>
+  <button class="btn" id="next-btn" title="Slide tiếp (➡️)">▶</button>
+  <button class="btn" id="fullscreen-btn" title="Toàn màn hình (F)">⛶</button>
+</div>
+
+<script>
+  let currentSlide = 1;
+  const totalSlides = 15;
+
+  const slides = document.querySelectorAll('.slide');
+  const progressBar = document.getElementById('progress-bar');
+  const slideIndicator = document.getElementById('slide-indicator');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+  function updateSlide(index) {
+    if (index < 1) index = 1;
+    if (index > totalSlides) index = totalSlides;
+
+    slides.forEach((slide, i) => {
+      slide.classList.toggle('active', i + 1 === index);
+    });
+
+    currentSlide = index;
+    slideIndicator.textContent = `${currentSlide} / ${totalSlides}`;
+    progressBar.style.width = `${(currentSlide / totalSlides) * 100}%`;
+
+    window.location.hash = `#slide-${currentSlide}`;
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides) updateSlide(currentSlide + 1);
+  }
+
+  function prevSlide() {
+    if (currentSlide > 1) updateSlide(currentSlide - 1);
+  }
+
+  prevBtn.addEventListener('click', prevSlide);
+  nextBtn.addEventListener('click', nextSlide);
+
+  fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      prevSlide();
+    } else if (e.key === 'f' || e.key === 'F') {
+      fullscreenBtn.click();
+    }
+  });
+
+  window.addEventListener('load', () => {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#slide-')) {
+      const pageNum = parseInt(hash.replace('#slide-', ''), 10);
+      if (pageNum >= 1 && pageNum <= totalSlides) {
+        updateSlide(pageNum);
+        return;
+      }
+    }
+    updateSlide(1);
+  });
+</script>
+</body>
+</html>
