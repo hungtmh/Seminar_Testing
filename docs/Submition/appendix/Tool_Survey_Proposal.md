@@ -8,7 +8,7 @@
 | -------------- | ------------------------------------------------- |
 | **Tên nhóm**   | Nhóm 8                                            |
 | **Thành viên** | Trần Mạnh Hùng · Ninh Văn Khải · Nguyễn Tấn Thắng |
-| **MSSV**       | 23127195 · 23127060 · [MSSV 3]                    |
+| **MSSV**       | 23127195 · 23127060 · 23127259                    |
 | **Chủ đề**     | **T10 — Mutation Testing & Test Effectiveness**   |
 | **Ngày nộp**   | 06/06/2026                                        |
 | **Giảng viên** | ThS. Hồ Tuấn Thanh                                |
@@ -69,7 +69,7 @@ Code coverage cao (80–100%) không đảm bảo bộ test thực sự chất l
 - ✅ DiffBlue Cover chỉ hỗ trợ Java — không phù hợp với EShop (Node.js)
 - ✅ LLM hiểu ngữ nghĩa code → có khả năng phân biệt **equivalent mutant** (mutant không thể kill)
 - ✅ Dễ demo và tương tác trong buổi học — không cần setup phức tạp
-- ✅ Nghiên cứu học thuật (arxiv 2024) xác nhận LLMs đạt F1-score cao hơn 35% so với heuristics trong phát hiện equivalent mutants
+- ✅ Nhiều nghiên cứu gần đây cho thấy LLM có tiềm năng hỗ trợ phát hiện equivalent mutant (cần kiểm chứng thêm, không trích số liệu chưa xác minh)
 
 **Workflow AI-Augmented sẽ demo:**
 
