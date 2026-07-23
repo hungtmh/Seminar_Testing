@@ -1,3 +1,6 @@
 module.exports = {
-  testMatch: ["**/tests/orders.api.baseline.test.js"],
+  rootDir: __dirname,
+  roots: ["<rootDir>/tests"],
+  testMatch: ["**/orders.api.baseline.test.js"],
+  testEnvironment: "node",
 };
