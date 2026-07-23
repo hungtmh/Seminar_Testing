@@ -11,9 +11,9 @@ export default {
     fileName: "reports/mutation-order-baseline/mutation.html",
   },
   mutate: ["services/orderService.js"],
-  testFiles: ["tests/orders.api.baseline.test.js"],
   jest: {
     configFile: "jest.order.baseline.config.cjs",
+    enableFindRelatedTests: false,
   },
   coverageAnalysis: "perTest",
   thresholds: {

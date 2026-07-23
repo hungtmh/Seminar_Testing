@@ -19,31 +19,36 @@ Bạn là QA Engineer. Dưới đây là **5 mutant** do Stryker sinh ra từ lo
 
 ## Danh sách Mutants (5 mutant tốt nhất — gộp từ cả hai module)
 
-### Mutant 1 — Khởi tạo giỏ hàng bị bẩn *(orderService.js)*
+### Mutant 1 — Khởi tạo giỏ hàng bị bẩn _(orderService.js)_
+
 - **Code gốc:** `if (!userCarts[userId]) userCarts[userId] = [];`
 - **Mutant:** `if (!userCarts[userId]) userCarts[userId] = ["Stryker was here"];`
 - **Gợi ý:** GET giỏ hàng của user mới — làm sao biết giỏ đang trống?
 - **Assertion của bạn:** `expect(............);`
 
-### Mutant 2 — Lộ đơn hàng của user khác (bảo mật) *(orderService.js)*
+### Mutant 2 — Lộ đơn hàng của user khác (bảo mật) _(orderService.js)_
+
 - **Code gốc:** `const userOrders = orders.filter(o => o.user_id === req.user.id);`
 - **Mutant:** `... o.user_id !== req.user.id`
 - **Gợi ý:** GET đơn hàng — làm sao chắc mọi đơn trả về đúng là của chính bạn?
 - **Assertion của bạn:** `expect(............);`
 
-### Mutant 3 — Điều kiện giới hạn Coupon lỏng lẻo *(orderService.js — Boundary Value)*
+### Mutant 3 — Điều kiện giới hạn Coupon lỏng lẻo _(orderService.js — Boundary Value)_
+
 - **Code gốc:** `if (usage_count >= coupon.max_uses_per_user) return res.status(400);`
 - **Mutant:** `if (usage_count > coupon.max_uses_per_user) return res.status(400);`
 - **Gợi ý:** phải test tại `usage_count` bằng đúng bao nhiêu thì mới bẻ gãy được mutant?
 - **Assertion của bạn:** `expect(............);`
 
-### Mutant 4 — Tính sai giá trị giảm giá *(orderService.js)*
+### Mutant 4 — Tính sai giá trị giảm giá _(orderService.js)_
+
 - **Code gốc:** `let discount = (coupon.discount_percent / 100) * total_amount;`
 - **Mutant:** `let discount = (coupon.discount_percent * 100) * total_amount;`
 - **Gợi ý:** đơn 100k, mã giảm 10% → bạn mong đợi số tiền giảm là bao nhiêu?
 - **Assertion của bạn:** `expect(............);`
 
-### Mutant 5 — Bỏ qua kiểm tra giá âm *(orderLogic.js — Boundary Value)*
+### Mutant 5 — Bỏ qua kiểm tra giá âm _(orderLogic.js — Boundary Value)_
+
 - **Code gốc:** `if (item.price < 0) throw new Error("Invalid price");`
 - **Mutant:** `if (item.price <= 0) throw new Error("Invalid price");`
 - **Gợi ý:** giá bằng đúng `0` thì hợp lệ hay không? Test ở giá trị biên nào?
@@ -51,7 +56,7 @@ Bạn là QA Engineer. Dưới đây là **5 mutant** do Stryker sinh ra từ lo
 
 ---
 
-## ĐÁP ÁN (Dành cho Quản trò — Nhóm 08)
+## ĐÁP ÁN
 
 <details>
 <summary>Nhấn để xem đáp án chấm điểm</summary>
@@ -63,5 +68,3 @@ Bạn là QA Engineer. Dưới đây là **5 mutant** do Stryker sinh ra từ lo
 5. **Mutant 5:** truyền sản phẩm giá `0` và khẳng định KHÔNG bị ném lỗi (giá 0 vẫn hợp lệ) → `expect(() => calc(cartWithZeroPrice)).not.toThrow();`
 
 </details>
-
-> **Ghi chú tính nhất quán:** Mutant 1–4 lấy từ module API thật `orderService.js` (khớp báo cáo chính); Mutant 5 lấy từ module tính giá `orderLogic.js` dùng ở baseline tuần 7 — cả hai đều thuộc backend EShop.
