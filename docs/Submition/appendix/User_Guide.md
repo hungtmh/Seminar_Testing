@@ -1,9 +1,11 @@
 # 🧬 User Guide: Mutation Testing & Test Effectiveness
 ### Seminar Topic T10 — CS423 / CSC15003 — FIT@HCMUS
 
-> **Nhóm thực hiện:** [Tên nhóm]  
-> **Thành viên:** [Danh sách thành viên]  
-> **Ngày nộp:** [Ngày nộp]  
+> **Nhóm thực hiện:** Nhóm 8  
+> **Thành viên:** 
+> - Ninh Văn Khải
+> - Trần Mạnh Hùng
+> - Nguyễn Tấn Thắng
 > **Công cụ chính:** Stryker Mutator (JS/TS) + ChatGPT/Claude (AI-Augmented)
 
 ---
