@@ -1,212 +1,348 @@
-# 🧬 Slide Thuyết Trình Seminar T10 — Mutation Testing & Test Effectiveness
+# Slide Bài Giảng Seminar T10 — Mutation Testing & Test Effectiveness
 
 > **Môn học:** CS423 / CSC15003 — Kiểm thử phần mềm (FIT@HCMUS)  
 > **GVHD:** ThS. Hồ Tuấn Thanh  
-> **Nhóm thực hiện:** Nhóm 08  
-> **Thành viên:**  
+> **Nhóm 08:**  
 > - 23127195 — Trần Mạnh Hùng  
 > - 23127060 — Ninh Văn Khải  
 > - 23127259 — Nguyễn Tấn Thắng  
-> 
-> 🎥 **Video Demo (YouTube Unlisted):** `<<DÁN_YOUTUBE_UNLISTED_LINK_TẠI_ĐÂY>>`
 
 ---
 
-## Slide 1: Giới thiệu Đề tài & Thành viên Nhóm
+## Slide 1: Giới Thiệu Đề Tài
 
-*Người phụ trách: Cả Nhóm 08*
+*Người phụ trách: Cả Nhóm 08 (23127195 - Trần Mạnh Hùng · 23127060 - Ninh Văn Khải · 23127259 - Nguyễn Tấn Thắng)*
 
-### Chủ đề Seminar T10: Mutation Testing & Test Effectiveness
-- **Đơn vị:** Khoa Công nghệ Thông tin — Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM.
-- **Ứng dụng thực nghiệm (SUT):** Backend EShop (Node.js / Express / SQLite).
-- **Thành viên nhóm:**
-  1. **23127195 - Trần Mạnh Hùng** *(Nhóm trưởng / DevOps)*: Infrastructure, Auth Module, Stryker Config & Fix SQLite Crash.
-  2. **23127060 - Ninh Văn Khải** *(QA / AI Specialist)*: Order/Coupon Module, AI Audit Pack, Activity "Kill the Mutant".
-  3. **23127259 - Nguyễn Tấn Thắng** *(Tech Writer / Tester)*: Product/Admin Module (100%), User Guide, Failure Modes & Slides.
+### Seminar T10: Mutation Testing & Test Effectiveness
+
+Câu hỏi bài học đặt ra: Bạn đã viết test, test đang xanh hết — làm sao biết bộ test đó có thực sự kiểm tra đúng logic không?
+
+Mục tiêu bài giảng:
+1. Giải thích tại sao test xanh chưa phải là test tốt.
+2. Giới thiệu kỹ thuật Mutation Testing để đo chất lượng bộ test.
+3. Demo thực tế trên ứng dụng web EShop bằng công cụ Stryker.
 
 ---
 
-## Slide 2: Đặt vấn đề — Vì sao Code Coverage "biết nói dối"?
+## Slide 2: Vấn Đề Với Bài Test Hiện Tại
 
 *Người phụ trách: 23127195 - Trần Mạnh Hùng*
 
-### Hạn chế cốt lõi của Code Coverage truyền thống
-- **Code Coverage chỉ đo dòng code được chạy qua**, KHÔNG đo khả năng phát hiện lỗi logic của bài test.
-- **Ví dụ minh họa:**
+### Test đang xanh chưa chắc là test đang kiểm tra đúng
+
+Hãy xem ví dụ đơn giản sau.
+
+Hàm kiểm tra người dùng có đủ 18 tuổi không:
 ```javascript
 function isAdult(age) {
-  return age >= 18; // Code logic gốc
+  return age >= 18;
 }
-test('check adult', () => {
-  expect(isAdult(20)).toBe(true); // Test đạt 100% Line Coverage!
+```
+
+Bài test được viết:
+```javascript
+test('kiem tra nguoi lon', () => {
+  expect(isAdult(20)).toBe(true);
 });
 ```
-- **Vấn đề:** Nếu lập trình viên sửa `>=` thành `>`, test trên **vẫn PASS 100%**, nhưng logic 18 tuổi đã bị lỗi!
+
+Kết quả: Test xanh, báo 100% coverage.
+
+Tuy nhiên nếu lập trình viên vô tình đổi `>=` thành `>`, bài test đó vẫn xanh. Người 18 tuổi sẽ bị từ chối nhưng không có test nào phát hiện ra.
+
+Vấn đề: Bài test chạy qua dòng code nhưng không kiểm tra logic có đúng không.
 
 ---
 
-## Slide 3: Nền tảng Lý thuyết Mutation Testing
+## Slide 3: Mutation Testing Là Gì?
 
 *Người phụ trách: 23127195 - Trần Mạnh Hùng*
 
-### Nguyên lý hoạt động của Mutation Testing
-1. Công cụ tự động chèn lỗi cố ý (**Mutants**) vào mã nguồn gốc.
-2. Chạy toàn bộ bộ test suite trên từng Mutant.
-3. **Các trạng thái của Mutant:**
-   - 🟢 **Killed (Đã diệt):** Ít nhất 1 test case bị FAIL $\rightarrow$ Test nhạy bén, bắt được lỗi.
-   - 🔴 **Survived (Sống sót):** Tất cả test vẫn PASS $\rightarrow$ Bộ test yếu, có lỗ hổng assertion.
-   - ⏱️ **Timeout:** Mutant gây lặp vô tận $\rightarrow$ Ghi nhận đã bắt được.
-   - ⚪ **NoCoverage:** Không có test nào chạy qua dòng code chứa mutant.
+### Ý tưởng: Công cụ tự gieo lỗi nhỏ vào code rồi hỏi bộ test có bắt được không
+
+Cách hiểu đơn giản:
+- Bạn viết code và viết test.
+- Công cụ Mutation Testing tự động sửa một lỗi nhỏ vào code của bạn.
+- Công cụ chạy lại toàn bộ bộ test với code bị sửa đó.
+- Nếu bộ test bị FAIL: Bộ test đủ tốt để bắt được lỗi đó.
+- Nếu bộ test vẫn PASS: Bộ test chưa kiểm tra được chỗ bị sửa.
+
+Mỗi lần sửa nhỏ như vậy gọi là một Mutant.
+
+| Kết quả sau khi chạy test | Ý nghĩa |
+|---|---|
+| Bộ test FAIL → Mutant bị diệt | Bộ test đang hoạt động tốt |
+| Bộ test PASS → Mutant sống sót | Bộ test có lỗ hổng, cần cải thiện |
 
 ---
 
-## Slide 4: Khảo sát & Chọn lựa Công cụ (Tool Survey)
+## Slide 4: Mutant Là Gì? Ví Dụ Cụ Thể
 
 *Người phụ trách: 23127195 - Trần Mạnh Hùng*
 
-### So sánh & Quyết định Chọn lựa
-- **Công cụ truyền thống:** Chọn **Stryker Mutator (JS/TS)**
-  - *Lý do:* Tiêu chuẩn vàng cho Node.js/Express, hỗ trợ Jest runner, xuất báo cáo HTML trực quan và chế độ `coverageAnalysis: "perTest"`.
-- **Công cụ AI-Augmented:** Chọn **ChatGPT / Claude (Prompt-based LLM)**
-  - *Lý do:* EShop viết bằng Node.js, không dùng được DiffBlue Cover (chỉ cho Java). Phối hợp LLM giúp phân tích code diff của mutant sống và gợi ý câu lệnh `expect()` chính xác.
+### Mutant = một bản copy của code gốc nhưng bị sửa một chỗ nhỏ
 
----
-
-## Slide 5: Kiến trúc SUT EShop & Cấu hình Phân vùng (Scoped Config)
-
-*Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
-
-### Refactor SUT & Scoped Stryker Configuration
-- Refactor các route từ `server.js` sang 3 service riêng biệt:
-  - `services/authService.js` (Authentication & User Profile)
-  - `services/orderService.js` (Cart, Order & Coupon)
-  - `services/productService.js` (Product CRUD & Admin Orders)
-- **Tạo cấu hình Stryker cô lập từng module (`stryker.*.config.mjs`):**
-  - Tránh tình trạng Stryker nạp nhầm test module khác gây xung đột DB và chạy chậm hàng giờ.
-
----
-
-## Slide 6: Kết quả Thực nghiệm — Hành trình Nâng điểm Mutation Score
-
-*Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
-
-### Bảng tổng hợp Kết quả 3 Module trên Backend EShop (52/52 Tests PASSED)
-
-| Module EShop | Số Test Jest | Baseline Score | Improved Score | Final Score | Killed / Valid Mutants | Trạng thái |
-|---|---:|---:|---:|---:|---:|:---:|
-| **Cart / Coupon / Order** | 21 | 16.67% | 84.21% | **92.57%** | 154 / 175 (8 Timeout) | 🟢 Đạt xuất sắc |
-| **Authentication / User** | 19 | 31.30% | 59.83% | **87.16%** | 80 / 91 (11 Survived) | 🟢 Đạt xuất sắc |
-| **Product / Admin APIs** | 18 | — (*) | — | **100.00%** | 165 / 165 (11 Timeout) | 🟢 Đạt tối đa tuyệt đối |
-
-> (*) Product Module viết assertion đầy đủ ngay từ đầu dựa trên kinh nghiệm tích lũy từ 2 module trước.
-
----
-
-## Slide 7: Phân tích Chi tiết Mutant 1 — Cart State & Assertion Fix
-
-*Người phụ trách: 23127060 - Ninh Văn Khải*
-
-### Mutant 1: Khởi tạo Giỏ hàng bị chèn Rác
-- **Code gốc:** `if (!userCarts[userId]) userCarts[userId] = [];`
-- **Stryker Mutate:** `if (!userCarts[userId]) userCarts[userId] = ["Stryker was here"];`
-- **Vì sao Survived?** Test baseline chỉ kiểm tra HTTP status `200 OK`, không kiểm tra body giỏ hàng trả về.
-- **Kỹ thuật Diệt Mutant:**
+Code gốc:
 ```javascript
-// Bổ sung Assertion kiểm tra mảng rỗng chính xác:
-expect(res.body).toEqual([]);
-expect(res.body.length).toBe(0);
+if (age >= 18) {
+  return 'Duoc phep';
+}
 ```
-- **Kết quả:** Mutant bị **Killed** ngay lập tức!
+
+Mutant 1 — đổi dấu so sánh từ >= thành >:
+```javascript
+if (age > 18) {
+  return 'Duoc phep';
+}
+```
+
+Mutant 2 — đổi dấu so sánh từ >= thành <=:
+```javascript
+if (age <= 18) {
+  return 'Duoc phep';
+}
+```
+
+Mỗi lần thay đổi như vậy là 1 Mutant. Công cụ có thể tạo ra hàng trăm Mutant từ một file code.
+
+Mục tiêu: Bộ test phải phát hiện và diệt được tất cả các Mutant đó.
 
 ---
 
-## Slide 8: Phân tích Chi tiết Mutant 2 — Coupon Boundary & Phát hiện Bug Thật
-
-*Người phụ trách: 23127060 - Ninh Văn Khải*
-
-### Mutant 2: Ranh giới Số lần Sử dụng Coupon
-- **Code gốc:** `if (usage_count >= coupon.max_uses_per_user) return res.status(400);`
-- **Stryker Mutate:** `if (usage_count > coupon.max_uses_per_user) ...` (đổi `>=` thành `>`)
-- **Kỹ thuật Diệt Mutant:** Áp dụng Boundary Value Analysis (BVA), tạo test case với `usage_count = max_uses` $\rightarrow$ assert lỗi `400`.
-- **🚨 HIGHLIGHT — PHÁT HIỆN BUG THẬT TRONG ESHOP:**
-  - Logic giảm giá % trong code gốc EShop bị sai: `1 - discount_value` thay vì `discount_value / 100`.
-  - Nhóm giữ nguyên logic gốc và viết assertion kiểm chứng đúng hành vi hiện tại $\rightarrow$ Chứng minh Mutation Testing giúp phát hiện bug thật!
-
----
-
-## Slide 9: Quy trình AI-Augmented & Các Lỗi Sai (Failure Modes) của AI
-
-*Người phụ trách: 23127060 - Ninh Văn Khải*
-
-### Quy trình Mutant-Guided AI Loop & 4 Failure Modes
-- **Quy trình:** Stryker Run $\rightarrow$ Export Surviving Diff $\rightarrow$ Prompt LLM $\rightarrow$ Human Verify (Jest/Stryker).
-- **Các lỗi sai (Failure Modes) phổ biến của AI:**
-  1. **Factual Error:** Gợi ý `.toBe([])` sai cú pháp Jest (phải dùng `.toEqual([])`).
-  2. **Missing Edge Cases:** Bỏ sót các trường hợp Concurrency / Race Condition.
-  3. **Silent Assumptions:** Giả định ngầm DB tự reset giữa các test, không tạo `beforeEach()`.
-  4. **Over-confident Statement:** Khẳng định diệt 1 mutant là code "100% bulletproof".
-
----
-
-## Slide 10: Kỹ thuật Sửa lỗi Crash SQLite Database (`SQLITE_BUSY`)
+## Slide 5: Mutation Score Là Gì?
 
 *Người phụ trách: 23127195 - Trần Mạnh Hùng*
 
-### Sự cố Kỹ thuật Chuyên sâu & Giải pháp
-- **Sự cố:** Khi Stryker chạy 15 worker song song trên Windows, các worker cùng ghi vào `database.sqlite` vật lý gây lỗi crash native C++ `0xC0000005`.
-- **Giải pháp xử lý trong `database.js`:**
-```javascript
-// Tự động phát hiện môi trường Jest worker hoặc sandbox Stryker (.stryker-tmp)
-const isStryker = __dirname.includes('.stryker-tmp') || process.env.JEST_WORKER_ID;
-const dbPath = isStryker ? ':memory:' : path.resolve(__dirname, 'database.sqlite');
+### Mutation Score = thước đo chất lượng bộ test
+
+Công thức tính:
 ```
-- **Kết quả:** Xử lý triệt để 100% lỗi crash, giúp Stryker chạy mượt mà đạt điểm tối đa!
+Mutation Score = (Số Mutant bị diệt) / (Tổng số Mutant) x 100%
+```
+
+Ví dụ:
+- Công cụ tạo ra 100 Mutant.
+- Bộ test diệt được 75 Mutant.
+- Mutation Score = 75%
+
+Ý nghĩa các mức điểm:
+
+| Mức điểm | Đánh giá |
+|---|---|
+| Dưới 40% | Bộ test rất yếu |
+| 40% - 70% | Bộ test trung bình |
+| 70% - 90% | Bộ test tốt |
+| Trên 90% | Bộ test rất chặt chẽ |
+
+Lưu ý: Đạt 100% là rất khó vì có những Mutant thay đổi cú pháp nhưng không thay đổi hành vi chương trình.
 
 ---
 
-## Slide 11: Hoạt động Lớp học — Game "Kill the Mutant" (25 Phút)
+## Slide 6: 4 Trạng Thái Của Một Mutant
 
 *Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
 
-### Kế hoạch Tổ chức Trò chơi Tương tác Lớp học
-- **Thời lượng:** 25 phút (nằm trong tổng 45 phút đứng lớp).
-- **Quy trình 3 bước:**
-  1. **10 phút đầu:** Chiếu 5 đoạn code mutant trích từ EShop. Các nhóm thảo luận và viết Assertion ra phiếu/giấy.
-  2. **5 phút tiếp:** Tổ chức chấm chéo (Peer Review) giữa các nhóm.
-  3. **10 phút cuối:** Nhóm 08 nhập câu lệnh của các nhóm và **chạy live ngay tại chỗ trên màn hình** xem mutant có bị Killed không!
+### Sau khi chạy bộ test với một Mutant, có 4 kết quả có thể xảy ra
+
+| Trạng thái | Biểu tượng | Giải thích |
+|---|:---:|---|
+| Killed (Diệt) | 🟢 | Bộ test phát hiện được lỗi — bộ test đang hoạt động tốt |
+| Survived (Sống sót) | 🔴 | Bộ test không phát hiện được lỗi — cần viết thêm assertion |
+| Timeout | ⏱️ | Mutant gây ra vòng lặp vô tận, test không kết thúc được — tính là diệt |
+| NoCoverage | ⚪ | Không có test case nào chạy đến dòng code bị sửa — thiếu test hoàn toàn |
+
+Điểm cần nhớ: Chỉ trạng thái Survived mới là vấn đề thực sự cần xử lý.
 
 ---
 
-## Slide 12: Bộ Hồ sơ AI Audit Pack Full (AI-02, AI-03, AI-04)
+## Slide 7: Công Cụ Nào Làm Được Việc Này?
+
+*Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
+
+### Có nhiều công cụ Mutation Testing cho từng ngôn ngữ lập trình
+
+| Ngôn ngữ | Công cụ phổ biến |
+|---|---|
+| JavaScript / TypeScript | Stryker Mutator |
+| Java | PITest |
+| Python | mutmut |
+| C / C++ | mull |
+
+Nhóm chọn Stryker vì:
+- Ứng dụng EShop được viết bằng Node.js và JavaScript.
+- Stryker hỗ trợ chạy cùng với Jest — framework viết test phổ biến nhất của JavaScript.
+- Stryker xuất báo cáo dạng HTML, hiển thị từng dòng code, tô màu xanh hoặc đỏ theo kết quả.
+
+---
+
+## Slide 8: Bài Test Là Gì? Jest Là Gì?
+
+*Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
+
+### Jest là công cụ viết bài kiểm tra tự động cho code JavaScript
+
+Ví dụ một bài test bằng Jest:
+```javascript
+// Ham can kiem tra:
+function tinh_tong(a, b) {
+  return a + b;
+}
+
+// Bai test:
+test('tinh tong hai so', () => {
+  const ket_qua = tinh_tong(3, 4);
+  expect(ket_qua).toBe(7);
+});
+```
+
+Giải thích từng dòng:
+- `expect(ket_qua)` — Đây là kết quả thực tế hàm trả về.
+- `.toBe(7)` — Đây là kết quả kỳ vọng mà mình muốn.
+- Nếu hai cái không khớp nhau thì test FAIL.
+- Nếu test FAIL khi chạy với Mutant thì Mutant đó bị diệt.
+
+---
+
+## Slide 9: Tại Sao Bộ Test Yếu Không Diệt Được Mutant?
 
 *Người phụ trách: 23127060 - Ninh Văn Khải*
 
-### Minh bạch & Trách nhiệm khi Sử dụng AI
-- **[AI-02] Audit Report (≥600 từ):** Thống kê 6 sự cố AI làm sai và quy trình kiểm chứng 100% bởi con người.
-- **[AI-03] AI Disclosure:** Tuyên bố rõ ràng phạm vi sử dụng AI (chỉ dùng hỗ trợ gợi ý assertion và giải thích diff).
-- **[AI-04] Reflective Statement (300 words English):** Bài thu hoạch phản biện sâu sắc về vai trò của con người trong kỷ nguyên AI-augmented software engineering.
+### Test yếu chỉ kiểm tra API có phản hồi không, không kiểm tra nội dung có đúng không
+
+Ví dụ bộ test yếu:
+```javascript
+test('API dang nhap', async () => {
+  const res = await fetch('/api/login', { ... });
+  expect(res.status).toBe(200);
+  // Chi kiem tra ma trang thai HTTP, khong kiem tra gi them
+});
+```
+
+Nếu Mutant sửa logic bên trong hàm đăng nhập, API vẫn trả về status 200. Test vẫn PASS. Mutant sống sót.
+
+Cách khắc phục — Thêm assertion kiểm tra chi tiết hơn:
+```javascript
+test('API dang nhap', async () => {
+  const res = await fetch('/api/login', { ... });
+  expect(res.status).toBe(200);
+  expect(res.body.token).toBeDefined();          // Kiem tra co token khong
+  expect(res.body.user.email).toBe('test@mail.com'); // Kiem tra email co dung khong
+});
+```
+
+Assertion càng nhiều và càng cụ thể thì Mutant càng dễ bị diệt.
 
 ---
 
-## Slide 13: Bảng Đóng góp Công việc & Bài học Kinh nghiệm
+## Slide 10: Demo Thực Tế — Chạy Stryker Trên Ứng Dụng EShop
 
-*Người phụ trách: Cả Nhóm 08*
+*Người phụ trách: 23127060 - Ninh Văn Khải*
 
-### Bảng Phân công Công việc (Tỷ lệ Đóng góp 33.3% mỗi thành viên)
+### Stryker hoạt động từng bước như sau
 
-| MSSV | Họ và tên | Vai trò | Hạng mục đóng góp | Đóng góp |
-|---|---|---|---|:---:|
-| **23127195** | Trần Mạnh Hùng | Nhóm trưởng | Setup Jest/Stryker, Auth Module, Fix SQLite `:memory:`. | **33.3%** |
-| **23127060** | Ninh Văn Khải | QA / AI Lead | Order Module (92.6%), AI Audit Pack, Activity "Kill the Mutant". | **33.4%** |
-| **23127259** | Nguyễn Tấn Thắng | Tech Writer | Product Module (100%), User Guide, Failure Modes & Slides. | **33.3%** |
+Bước 1: Gõ lệnh chạy Stryker:
+```bash
+npm run mutation:auth
+```
+
+Bước 2: Stryker tự động thực hiện 4 việc:
+1. Đọc file code nguồn `authService.js`.
+2. Tạo ra hàng chục Mutant từ file đó.
+3. Chạy bộ test auth với từng Mutant một.
+4. Ghi lại kết quả: Mutant nào bị diệt, Mutant nào sống sót.
+
+Bước 3: Stryker xuất báo cáo HTML:
+- Hiển thị từng dòng code trong trình duyệt.
+- Tô màu xanh cho dòng Mutant bị diệt.
+- Tô màu đỏ cho dòng Mutant sống sót.
+- Người dùng nhấn vào từng dòng đỏ để xem chi tiết cần bổ sung assertion gì.
 
 ---
 
-## Slide 14: Q&A & Link Video Demo (YouTube Unlisted)
+## Slide 11: Ví Dụ Thực Tế — Mutant Sống Sót Và Cách Diệt
 
-*Người phụ trách: Cả Nhóm 08*
+*Người phụ trách: 23127060 - Ninh Văn Khải*
 
-### Tổng kết & Mở rộng Thảo luận
-- 🎥 **Link Video Demo (YouTube Unlisted):** `<<DÁN_YOUTUBE_UNLISTED_LINK_TẠI_ĐÂY>>`
-- 📁 **Repository & Artifacts:** Thư mục `docs/Submition/` chứa đầy đủ `Final_Report.pdf`, `Group08_Slides.pdf`, và mã nguồn EShop.
-- ❓ **Xin chân thành cảm ơn Thầy và các bạn đã chú ý theo dõi! Q&A Session.**
+### Ví dụ: Stryker đổi điều kiện khóa tài khoản
+
+Code gốc trong hàm đăng nhập:
+```javascript
+// Kiem tra tai khoan co dang bi khoa khong
+if (locked_until && today < locked_until) {
+  return { error: 'Tai khoan bi khoa' };
+}
+```
+
+Mutant do Stryker tạo ra — đổi && thành ||:
+```javascript
+if (locked_until || today < locked_until) {
+  return { error: 'Tai khoan bi khoa' };
+}
+```
+
+Hậu quả của Mutant: Người dùng bị khóa vĩnh viễn dù thời gian khóa đã hết từ lâu.
+
+Cách diệt Mutant — Viết test case kiểm tra đúng trường hợp này:
+```javascript
+test('cho phep dang nhap khi thoi gian khoa da het', async () => {
+  // Dat thoi gian khoa o 1 gio truoc
+  const thoiGianQua = new Date(Date.now() - 3600 * 1000);
+  // Cap nhat DB: tai khoan bi khoa tu 1 tieng truoc
+  // Thu dang nhap voi mat khau dung, phai duoc phep
+  expect(res.status).toBe(200);
+});
+```
+
+---
+
+## Slide 12: AI Hỗ Trợ Việc Tìm Và Viết Test Như Thế Nào?
+
+*Người phụ trách: 23127060 - Ninh Văn Khải*
+
+### Quy trình 4 bước: Stryker tìm vấn đề — AI gợi ý — Người kiểm chứng lại
+
+Bước 1: Stryker chạy xong và báo cáo có Mutant sống sót ở dòng 38.
+
+Bước 2: Nhóm đọc báo cáo, thấy Mutant đổi `[user.id]` thành `[]` trong câu lệnh SQL cập nhật database. Nhóm đặt câu hỏi cho AI: Stryker đổi tham số SQL từ `[user.id]` thành mảng rỗng `[]`. Bộ test không phát hiện ra. Gợi ý cách viết test để diệt Mutant này.
+
+Bước 3: AI phân tích code và đề xuất: Sau khi đăng nhập đúng mật khẩu, truy vấn thẳng vào database để kiểm tra cột `login_attempts` có bằng 0 không.
+
+Bước 4: Nhóm tự nhập code gợi ý, chạy `npm test` trên máy để xác nhận test PASS. Sau đó chạy lại Stryker để xác nhận Mutant bị diệt.
+
+Lưu ý quan trọng: AI chỉ gợi ý ý tưởng. Con người phải tự chạy và kiểm chứng lại. AI có thể gợi ý sai.
+
+---
+
+## Slide 13: Hoạt Động Thực Hành — Kill The Mutant (25 Phút)
+
+*Người phụ trách: 23127259 - Nguyễn Tấn Thắng*
+
+### Cả lớp cùng thử diệt Mutant trực tiếp
+
+Cách chơi:
+
+Bước 1 — 10 phút: Nhóm 08 chiếu 5 Mutant thực tế từ dự án. Mỗi Mutant gồm 3 phần: code gốc, code bị Stryker sửa, và bộ test hiện tại đang không phát hiện được. Nhiệm vụ của mỗi nhóm là viết thêm dòng `expect(...)` để diệt Mutant đó.
+
+Bước 2 — 5 phút: Các nhóm đổi bài cho nhau chấm chéo.
+
+Bước 3 — 10 phút: Nhóm 08 nhập assertion của từng nhóm rồi chạy `npm test` trực tiếp trên máy chiếu. Nếu test FAIL với Mutant thì nhóm đó thắng.
+
+---
+
+## Slide 14: Tổng Kết — 3 Bài Học Chính
+
+*Người phụ trách: Cả Nhóm 08 (23127195 - Trần Mạnh Hùng · 23127060 - Ninh Văn Khải · 23127259 - Nguyễn Tấn Thắng)*
+
+### Sau bài học hôm nay cần nhớ 3 điều
+
+Điều 1: Test xanh chưa phải là test tốt. Code Coverage chỉ đo test có chạy qua dòng code hay không. Mutation Testing mới đo test có phát hiện lỗi logic hay không.
+
+Điều 2: Assertion càng cụ thể thì test càng tốt. Không nên chỉ viết `expect(status).toBe(200)`. Cần kiểm tra thêm nội dung response body, dữ liệu trả về, trạng thái trong database.
+
+Điều 3: AI hỗ trợ nhanh hơn nhưng con người phải kiểm chứng. AI gợi ý test case tốt nhưng có thể sai. Luôn phải tự chạy lại để xác nhận.
+
+---
+
+Video Demo (YouTube Unlisted): <<DÁN_YOUTUBE_UNLISTED_LINK_TẠI_ĐÂY>>
+
+Cảm ơn Thầy và các bạn đã theo dõi. Nhóm sẵn sàng nhận câu hỏi.
